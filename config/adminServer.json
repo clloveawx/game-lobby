@@ -1,0 +1,30 @@
+[	
+	{
+		"type": "gate",
+		"token": "7ce2e5acf62e98ee2babe85e3ff3a5ffefc35249a32bc5f2393657d66b671ace"
+	},
+	{
+		"type": "connector",
+		"token": "919dcd2143ba0ad9bdcc9844f967b2cf8ee00e608d2cef1749c2c504627d5f6d"
+	},
+	{
+		"type": "hall",
+		"token": "724f135e3aa9426e1ad93bb07ab8ccafb3b620b3883e84421a1d348e1b43ef5a"
+	},
+	{
+		"type": "games",
+		"token": "724f135e3aa9426e1ad93bb07ab8ccafb3b620b3884f84421a1d348e1b43ef5a"		
+	},
+	{
+		"type": "huoguo",
+		"token": "724f135e3aa9967e1ad93bb07ab8ccafb3b620b3884f84421a1d348e1b43ef5a"		
+	},
+	{
+		"type": "pharaoh",
+		"token": "724f135e3aaet67e1ad93bb07ab8ccafb3b620b3884f84421a1d348e1b43ef5a"		
+	},
+	{
+		"type": "scheduleJobs",
+		"token": "7289135e3aaet67e1ad93bb07ab8ccafb3b620b3884f84421a1d348e1b43ef5a"		
+	}
+]

@@ -1,0 +1,61 @@
+{
+  "development":
+  {
+      "gate": 
+      [
+          {"id": "gate-server-1", "host": "127.0.0.1", "port": 3150, "clientHost": "127.0.0.1", "clientPort": 3010, "frontend": true}
+      ],
+      "connector": 
+      [
+          {"id": "connector-server-1", "host": "127.0.0.1", "port": 3250, "clientHost": "192.168.1.113", "clientPort": 3020, "frontend": true},
+		  {"id": "connector-server-1", "host": "127.0.0.1", "port": 3250, "clientHost": "192.168.1.113", "clientPort": 3020, "frontend": true},
+          {"id": "connector-server-1", "host": "127.0.0.1", "port": 3251, "clientHost": "192.168.1.113", "clientPort": 3021, "frontend": true},
+          {"id": "connector-server-1", "host": "127.0.0.1", "port": 3252, "clientHost": "192.168.1.113", "clientPort": 3022, "frontend": true},
+          {"id": "connector-server-1", "host": "127.0.0.1", "port": 3253, "clientHost": "192.168.1.113", "clientPort": 3023, "frontend": true},
+          {"id": "connector-server-1", "host": "127.0.0.1", "port": 3254, "clientHost": "192.168.1.113", "clientPort": 3024, "frontend": true}
+      ],
+      "hall": 
+      [
+          {"id": "hall-server-1", "host": "127.0.0.1", "port": 3350}
+      ],
+      "games": 
+      [
+          {"id": "games-server-1", "host": "127.0.0.1", "port": 3450}
+      ],
+      "huoguo": 
+      [
+          {"id": "huoguo-server-1", "host": "127.0.0.1", "port": 3550}
+      ],
+      "pharaoh":
+      [
+        {"id": "pharaoh-server-1", "host": "127.0.0.1", "port": 3650}
+      ]
+  },
+  "production":
+  {
+     "gate": 
+      [
+          {"id": "gate-server-1", "host": "127.0.0.1", "port": 3150, "clientHost": "127.0.0.1", "clientPort": 3010, "frontend": true}
+      ],
+      "connector": 
+      [
+          {"id": "connector-server-1", "host": "127.0.0.1", "port": 3250, "clientHost": "127.0.0.1", "clientPort": 3020, "frontend": true}
+      ],
+      "hall":
+      [
+          {"id": "hall-server-1", "host": "127.0.0.1", "port": 3350}
+      ],
+    "games": 
+      [
+          {"id": "games-server-1", "host": "127.0.0.1", "port": 3450}
+      ],
+      "huoguo": 
+      [
+          {"id": "huoguo-server-1", "host": "127.0.0.1", "port": 3550}
+      ],
+      "pharaoh":
+      [
+        {"id": "pharaoh-server-1", "host": "127.0.0.1", "port": 3650}
+      ]
+  }
+}

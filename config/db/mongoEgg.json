@@ -1,0 +1,12 @@
+{
+	"development": {
+    	"host": "192.168.1.113",
+		"port": 27017,
+		"name": "lobby"
+	},
+	"production": {
+    	"host": "192.168.1.113",
+		"port": 27017,
+		"name": "lobby"
+  	}
+}

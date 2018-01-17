@@ -1,0 +1,8 @@
+[
+	{ "id": 200, "name": "1万金币", "dese": "获得10000金币", "price": 10, "diamond": 10000, "coinType": 3, "icon": "gold1","type": "gold" },
+	{ "id": 201, "name": "3万金币", "dese": "获得30000金币", "price": 30, "diamond": 30000, "coinType": 3, "icon": "gold2" ,"type": "gold" },
+	{ "id": 202, "name": "5万金币", "dese": "获得50000金币", "price": 50, "diamond": 50000, "coinType": 3, "icon": "gold3" ,"type": "gold"},
+	{ "id": 203, "name": "10万金币", "dese": "获得100000金币", "price": 100, "diamond": 100000, "coinType": 3, "icon": "gold4" ,"type": "gold"},
+	{ "id": 204, "name": "20万金币", "dese": "获得200000金币", "price": 200, "diamond": 200000, "coinType": 3, "icon": "gold5" ,"type": "gold" },
+	{ "id": 205, "name": "50万金币", "dese": "获得500000金币", "price": 500, "diamond": 500000, "coinType": 3, "icon": "gold6" ,"type": "gold"}
+]

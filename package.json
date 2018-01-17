@@ -1,0 +1,22 @@
+{
+  "name": "0801-server",
+  "version": "0.0.1",
+  "private": false,
+  "dependencies": {
+    "async": "^2.5.0",
+    "bluebird": "^3.5.1",
+    "express": "^4.15.3",
+    "ioredis": "^3.2.2",
+    "mongoose": "^4.12.1",
+    "node-schedule": "^1.2.3",
+    "parse-json": "^4.0.0",
+    "pomelo": "^2.2.5",
+    "pomelo-sync-plugin": "0.0.2",
+    "q": "^1.5.1",
+    "ramda": "^0.24.1",
+    "sha1": "^1.1.1",
+    "urlencode": "^1.1.0",
+    "winston": "^2.4.0",
+    "xml2js": "^0.4.19"
+  }
+}

@@ -1,0 +1,18 @@
+[
+	{ "nid": "1","sname": "slot777","betgold":[500,1250,2500],"minBet":20,"maxBet":40},
+	{ "nid": "2","sname": "疯狂汉堡","betgold":[500,1500,5000],"minBet":20,"maxBet":40},
+	{ "nid": "3","sname": "火锅天下","betgold":[1000,2000,5000],"minBet":36,"maxBet":60},
+	{ "nid": "4","sname": "太空夺宝","betgold":[200,400,600],"minBet":15,"maxBet":30},
+	{ "nid": "12","sname": "埃及夺宝","betgold":[200,400,600],"minBet":20,"maxBet":40},
+	{ "nid": "7","sname": "齐天大圣","betgold":[125,1250,6250],"minBet":20,"maxBet":40},
+	{ "nid": "8","sname": "欢乐百家","betgold":[500,1500,5000],"minBet":20,"maxBet":40,"msg":["连续战胜<color=#FDD105>5</c>把庄家，正在大杀特杀！",
+	"连续战胜<color=#FDD105>6</c>把庄家，正在杀爆庄家！","连续战胜<color=#FDD105>7</c>把庄家，正在神挡杀神！",
+	"坐庄连续通杀<color=#FDD105>3</c>把闲家，已经无人能挡！","坐庄连续通杀<color=#FDD105>4</c>把闲家，已经接近神了！",
+	"坐庄连续通杀<color=#FDD105>5</c>把闲家，已经超越神了！"]},
+	{ "nid": "9","sname": "百人牛牛","betgold":[500,1500,5000],"minBet":20,"maxBet":40,"msg":["连续战胜<color=#FDD105>5</c>把庄家，正在大杀特杀！",
+	"连续战胜<color=#FDD105>6</c>把庄家，正在杀爆庄家！","连续战胜<color=#FDD105>7</c>把庄家，正在神挡杀神！",
+	"坐庄连续通杀<color=#FDD105>3</c>把闲家，已经无人能挡！","坐庄连续通杀<color=#FDD105>4</c>把闲家，已经接近神了！",
+	"坐庄连续通杀<color=#FDD105>5</c>把闲家，已经超越神了！"]},
+	{ "nid": "10","sname": "寻宝奇航","betgold":[250,1000,5000],"minBet":20,"maxBet":40},
+	{ "nid": "11","sname": "ATT","betgold":[10,100,500],"minBet":75,"maxBet":300}
+]

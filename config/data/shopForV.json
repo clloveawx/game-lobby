@@ -1,0 +1,6 @@
+[
+	{ "id": 100, "name": "100V点", "dese": "购买100V点", "price": 100, "vdian": 100, "coinType": 3, "icon": "vdian1", "type":"point"},
+	{ "id": 101, "name": "500V点", "dese": "购买500V点", "price": 500, "vdian": 500, "coinType": 3, "icon": "vdian2" , "type":"point"},
+	{ "id": 102, "name": "1000V点", "dese": "购买1000V点", "price": 1000, "vdian": 1000, "coinType": 3, "icon": "vdian3" , "type":"point"},
+	{ "id": 103, "name": "5000V点", "dese": "购买5000V点", "price": 5000, "vdian": 5000, "coinType": 3, "icon": "vdian4" , "type":"point"}
+]

@@ -1,0 +1,10 @@
+[
+	{ "id":1,"buyId": 2,"payIcon":"payIcon3", "name": "微信扫码",  "shanghu": "仟易商户","type":"SCAN_CODE_QIANYI", "isMobile":false,"isPC": true,"isWX": false,"isQrCode": false,"tips":"请用微信扫码支付"},
+	{ "id":2,"buyId": 3,"payIcon":"payIcon2", "name": "QQ钱包扫码","shanghu": "仟易商户",  "type":"SCAN_CODE_QIANYI", "isMobile":false,"isPC": true,"isWX": false,"isQrCode": false,"tips": "请用QQ扫码支付"},
+	{ "id":3,"buyId": 3,"payIcon":"payIcon2", "name": "QQ钱包H5", "shanghu": "仟易商户", "type":"H5_QIANYI", "isMobile":true,"isPC": false,"isWX": true,"isQrCode": false,"tips": "请用QQ扫码支付"},
+	{ "id":4,"buyId": 2,"payIcon":"payIcon3","name": "微信支付H5" , "shanghu": "仟易商户", "isMobile":true,"isPC": false,"isWX": false,"isQrCode": false},
+
+	{ "id":5,"buyId": 2,"payIcon":"payIcon3", "name": "微信扫码", "shanghu": "快一付", "type":"SCAN_CODE", "isMobile":false,"isPC": true,"isWX": false,"isQrCode": false,"tips":"请用微信扫码支付"},
+	{ "id":6,"buyId": 3,"payIcon":"payIcon2", "name": "QQ钱包扫码", "shanghu": "快一付", "type":"SCAN_CODE", "isMobile":false,"isPC": true,"isWX": false,"isQrCode": false,"tips": "请用QQ扫码支付"},
+	{ "id":8,"buyId": 6,"payIcon":"payIcon3","name": "微信支付H5" , "shanghu": "快一付","type":"H5", "isMobile":true,"isPC": false,"isWX": false,"isQrCode": false}
+]

@@ -1,0 +1,5 @@
+[
+	{ "id": 300, "name": "至尊卡(7天)", "dese": "购买开启私人游戏厅", "pfv": 7, "needVip": 1, "price": 300, "coinType": 2, "icon": "VIP1" },
+	{ "id": 301, "name": "至尊卡(30天)", "dese": "购买开启私人游戏厅", "pfv": 30, "needVip": 1, "price": 120, "coinType": 2, "icon": "VIP2" },
+	{ "id": 302, "name": "至尊卡(60天)", "dese": "购买开启私人游戏厅", "pfv": 60, "needVip": 1, "price": 200, "coinType": 2, "icon": "VIP3" }
+]

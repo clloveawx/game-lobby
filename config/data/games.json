@@ -1,0 +1,17 @@
+[
+    { "nid": "1", "name": "slots777", "minRoom": 5, "roomUserLimit": 6, "price": 600, "machinePrice": 188, "sname": 777, "zname": "幸运777", "topicon": "slots", "removalTime": 7, "pumpingRate": 0.006, "openState": "" ,"proportion":1},
+    { "nid": "2", "name": "slothumburg", "minRoom": 5, "roomUserLimit": 6, "price": 600, "machinePrice": 188, "sname": "汉堡", "zname": "疯狂汉堡", "topicon": "slots", "removalTime": 7, "pumpingRate": 0.006, "openState": "" ,"proportion":1},
+    { "nid": "3", "name": "hotPot", "minRoom": 5, "roomUserLimit": 10, "price": 1000, "machinePrice": 188, "sname": "火锅", "zname": "火锅天下", "topicon": "yapan", "removalTime": 70, "pumpingRate": 0.008, "openState": "" ,"proportion": 1},
+    { "nid": "4", "name": "eliminate", "minRoom": 5, "roomUserLimit": 6, "price": 800, "machinePrice": 268, "sname": "连连看", "zname": "太空夺宝", "topicon": "slots", "removalTime": 7, "pumpingRate": 0.006, "openState": "" ,"proportion": 1},
+    { "nid": "7", "name": "QitianDasheng", "minRoom": 5, "roomUserLimit": 6, "price": 600, "machinePrice": 188, "sname": "西游记", "zname": "齐天大圣", "topicon": "slots", "removalTime": 15, "pumpingRate": 0.006, "openState": "" ,"proportion": 2},
+    { "nid": "8", "name": "baijia", "minRoom": 5, "roomUserLimit": 100, "price": 1200, "machinePrice": 1688, "sname": "百家乐", "zname": "欢乐百家", "topicon": "puke", "removalTime": 42, "pumpingRate": 0.01, "openState": "" ,"proportion": 2},
+    { "nid": "9", "name": "bairen", "minRoom": 5, "roomUserLimit": 100, "price": 1200, "machinePrice": 1688, "sname": "百人牛牛", "zname": "百人牛牛", "topicon": "puke", "removalTime": 42, "pumpingRate": 0.01, "openState": "" ,"proportion": 1},
+    { "nid": "10", "name": "pirate", "minRoom": 5, "roomUserLimit": 6, "price": 700, "machinePrice": 188, "sname": "海盗", "zname": "寻宝奇航", "topicon": "slots", "removalTime": 7, "pumpingRate": 0.006, "openState": "" ,"proportion": 1},
+    { "nid": "11", "name": "att", "minRoom": 5, "roomUserLimit": 6, "price": 1000, "machinePrice": 588, "sname": "欢乐翻牌", "zname": "欢乐翻牌", "topicon": "puke", "removalTime": 7, "pumpingRate": 0.006, "openState": "" ,"proportion": 1},
+    { "nid": "12", "name": "pharaoh", "minRoom": 5, "roomUserLimit": 6, "price": 800, "machinePrice": 588, "sname": "埃及", "zname": "埃及夺宝", "topicon": "slots", "removalTime": 7, "pumpingRate": 0.006, "openState": "" ,"proportion": 1},
+    { "nid": "13", "name": "vegaslive", "minRoom": 5, "roomUserLimit": 6, "price": 180, "machinePrice": 588, "sname": "vegaslive", "zname": "vegaslive", "topicon": "puke", "removalTime": 7, "pumpingRate": 0.006, "openState": true ,"proportion": 1},
+    { "nid": "14", "name": "texasHold", "minRoom": 5, "roomUserLimit": 6, "price": 180, "machinePrice": 588, "sname": "德扑", "zname": "德扑传奇", "topicon": "puke", "removalTime": 7, "pumpingRate": 0.006, "openState": true ,"proportion": 1},
+    { "nid": "16", "name": "niuniu", "minRoom": 5, "roomUserLimit": 6, "price": 180, "machinePrice": 588, "sname": "牛牛", "zname": "牛牛", "topicon": "puke", "removalTime": 7, "pumpingRate": 0.006, "openState": "","proportion": 3,"gameURL":"http://nn.urmlife.com" },
+    { "nid": "17", "name": "21", "minRoom": 5, "roomUserLimit": 6, "price": 180, "machinePrice": 588, "sname": "21点", "zname": "21点", "topicon": "puke", "removalTime": 7, "pumpingRate": 0.006, "openState": "","proportion": 1}
+
+]

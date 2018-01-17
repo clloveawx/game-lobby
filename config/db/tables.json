@@ -1,0 +1,387 @@
+{
+    "user_info":
+    {
+        "id": "String",
+        "uid": "String",
+        "loginIP": [],
+        "cellPhone" :"String",
+        "passWord" :"String",
+        "isOpenAgency" : "Boolean",
+        "remark":"String",
+        "openTime":"Number",
+        "type":"Number"
+    },
+    "player_info":
+    {
+        "uid": "String",
+        "nickname": "String",
+        "headurl": "String",
+        "sex": "Number",
+        "gold": "Number",
+        "integral": "Number",
+        "addRmb": "Number",
+        "selfbank" :"Number",
+        "inviteCode": {"type": "String", "index": true},
+        "lastLogoutTime": "Number",
+        "loginTime" : "Number",
+        "createTime": "Number",
+        "vip": "Boolean",
+        "nameChanged" :"Boolean",
+        "isPrompting": "Boolean",
+        "mails": [],
+        "vipStartTime": "Number",
+        "props": "Number",
+        "vipEffectiveTime" :"Number",
+        "vdot": "Number",
+        "gamesRecord" : "Mixed",
+        "alipay" :"String",
+        "inviteCodeBindTime":"Number",
+        "isRobot":"Number",
+        "viperId":"String",
+        "needPlatform": "Boolean",
+
+        "pirateMiniGames":{},
+        "pirateMiniGamesIntegral":{},
+        "pirateBox":[],
+        "pirateBoxIntegral":[],
+        "freespinNum":"Number",
+        "freespinNumIntegral":"Number",
+
+        "protocolAgree": "Boolean",
+        "allowances": "Mixed",
+        "renewalReminder": "Boolean",
+        "rechargeReminder": "Boolean",
+        "loginCount":"Number",
+        "unlock": {},
+        "lastGameContents": {},
+        "address":"String",
+        "roulette": "Number",
+        "addExchange":"Number",
+        "dailyIndianaSign": "Mixed",
+        "monthlyCard": "Mixed"
+    },
+    "platform":
+    {
+        "id": "String",
+        "creator": "Mixed",
+        "games": [],
+        "invitationCode": "String",
+        "members": [],
+        
+		"vipModel": "String",
+		"afterModel": "String",
+		"modelEffectTime": "Mixed",
+
+        "concatWay": "String", 
+        "concater": "String"
+    },
+    "system_games":
+    {
+        "nid": "String",
+        "heatDegree": "Number",
+        "rooms": "Mixed",
+        "onlineAwards": "Number"
+    },
+    "mails":
+    {
+        "id": "String",
+        "receiverId":{"type": "String", "index": true},
+        "img": "String",
+        "sender": "String",
+        "name": "String",
+        "content": "String",
+        "reason": "String",
+        "attachment": "Mixed",
+        "time": "Number",
+        "isRead": "Boolean",
+        "isdelete":"Boolean"
+    },
+    "customer_info":
+    {
+        "uid": "String",
+        "content":"String",
+        "nickname": "String",
+        "vip": "String",
+        "inviteCode": "String",
+        "isSolve": "Number",
+        "createTime": "string",
+        "type": "Number",
+        "name": "String",
+        "phone": "Number",
+        "qq": "Number",
+        "weixin": "String",
+        "passStatus": "Number",
+        "remark":"String",
+        "passType":"Number" 
+    },
+    "record_coin":
+    {
+        "uid": "String",
+        "nickname":"String",
+        "changeType": "Number",
+        "changeNum": "string",
+        "gold": "Number",
+        "integral": "Number",
+        "createTime": "string",
+        "coinType":"String"
+    },
+    "integral_record": {
+        "viperUid": "String",
+        "uid": "String",
+        "nickname": "String",
+        "duration": "Number",
+        "createTime": "Number",
+        "integral": "Number",
+        "settleStatus": "Boolean",
+        "gname" :"String"
+    },
+    "indianaWins": {
+        "pass": "String",
+        "reward": "String",
+        "winNum": "String",
+        "result": "Mixed"
+    },
+    "pharaoh":{
+        "pass": "String",
+        "reward": "String",
+        "winNum": "String",
+        "result": "Mixed"
+    },
+    "game_record": {
+        "uid": "String",
+        "nickname": "String",
+        "nid": "String",
+        "gname": "String",
+        "createTime": "Number",
+        "input": "Number",
+        "multiple": "Number",
+        "profit": "Number",
+        "selfGold": "Number",
+        "bate":"Number",
+        "playStatus":"Number"
+    },
+    "card_record": {
+        "uid": "String",
+        "id": "String",
+        "recordId":"String",
+        "cardNum": "Number",
+        "name": "String",
+        "allGold": "Number",
+        "time": "Number",
+        "status":"Number",
+        "remark":"String",
+        "address":"String",
+        "cardNo":[]
+    },
+    "invite_code_info": {
+        "inviteCode": "String",
+        "uid": "String",
+        "viper": "String",
+        "superior": "String",
+        "promoterId":"String",
+        "createTime": "Number",
+        "boundUid": "String",
+        "integral": "Number",
+        "secondViper":"String",
+        "rebate": "Number",
+        "inviteRecords": [],
+        "games": [],
+        "effectiveTimes": "Number"
+    },
+    "pay_info": {
+        "id": "String",
+        "time": "Number",
+        "time_end": "Number",
+        "attach": "String",
+        "bank_type": "String",
+        "fee_type": "String",
+        "total_fee": "Number",
+        "openid": "String",
+        "remark": "String",
+        "uid": "String",
+        "nickname": "String",
+        "addgold": "Number",
+        "gold": "Number",
+        "agencylink": "String"
+    },
+    "purchase_record": {
+        "uid": "String",
+        "consume": "Number",
+        "game": "String",
+        "machine":"Number",
+        "time": "Number"
+    },
+    "change_integral": {
+        "uid": "String",
+        "nickname": "String",
+        "integral": "Number",
+        "rebate" :"Number",
+        "isback": "Boolean",
+        "type": "String",
+        "time": "Number",
+        "inviteCode":"String",
+        "viperId":"String"
+    },
+    "promoter_info": {
+        "promoterId": "String",
+        "userName": "String",
+        "passWord": "String",
+        "promoterType":"String",
+        "remark":"String"
+    },
+    "player_login_record": {
+        "uid": "String",
+        "nickname": "String",
+        "loginTime": "Number",
+        "leaveTime": "Number",
+        "gold": "Number",
+        "integral": "Number",
+        "addRmb": "Number"
+    },
+    "pay_image": {
+        "uid": "String",
+        "imageId":"String",
+        "imageName": "String",
+        "creatTime": "Number",
+        "remark": "String"
+    },
+    "close_game": {
+        "nid": "String",
+        "status":"Boolean",
+        "closeTime": "Number"
+    }, 
+    "add_gold_rebates": {
+        "rebateId": "String",
+        "rebate":"Number",
+        "time": "Number"
+    },
+     "gold_back_record": {
+        "id": "String",
+        "upPlayerUid": "String",
+        "nickname": "String",
+        "payUid": "String",
+        "backGold":"Number",
+        "time": "Number"
+    },
+     "big_post_notice": {
+        "id": "String",
+        "nickname": "String",
+        "content": "String",
+        "uid": "String",
+        "time": "Number"
+    },
+     "save_card_things": {
+        "cardId": "String",
+        "id": "String",
+        "cardName": "String",
+        "cardNo": "String",
+        "cardPassWord": "String",
+        "status": "Number",
+        "createTime":"Number",
+        "remark": "String",
+        "recordTime":"Number"
+    },
+    "roulette_record":{
+        "uid": "String",
+        "type": "String",
+        "bet": "Number",
+        "award": "Number",
+        "select": "String"
+    },
+    "warn_value":{
+        "warn":[],
+        "money":"Number",
+        "moneyTimes":"Number"
+    },
+    "daily_indiana": {
+        "date": "String",
+        "jackpot": "Number",
+        "participant": "Mixed",
+        "awardNote": "Mixed",
+        "winningNote": "Mixed"
+    },
+    "daili_add_money": {
+        "uid": "String",
+        "money": "Number"
+    },
+    "close_pay": {
+        "id": "String",
+        "isOpen": "Boolean"
+    },
+      "pay_record": {
+        "id": "String",
+        "createTime": "Number",
+        "uid": "String"
+    },
+     "add_gold_record": {
+        "id": "String",
+        "createTime": "Number",
+        "uid": "String",
+        "gold": "Number",
+        "remark": "String"
+    },
+    "ai_add_money_recoed":{
+        "uid": "String",
+        "num": "Number"
+
+    },    
+    "close_card": {
+        "id": "String",
+        "isOpen": "Boolean"
+    },
+    "ranking_record": {
+        "id": "String",
+        "uid": "String",
+        "nickname":"String",
+        "gold":"Number",
+        "allPay":"Number",
+        "reward":"Number",
+        "createTime":"Number"
+    },
+    "starting_gold": {
+        "activation": "Boolean",
+        "limit": "Number",
+        "day": "Number",
+        "date": []
+    },
+    "indiana_record": {
+        "game": "String",
+        "record": "Mixed",
+        "vipRecord": "Mixed",
+        "littleGame": "Mixed",
+        "moneyChange": "Mixed",
+        "viperMoneyChange": "Mixed",
+        "shovelNum": "Mixed"
+    },
+    "slots_record": {
+        "game": "String",
+        "awardRegulation": "Mixed",
+        "record": "Mixed",
+        "vipRecord": "Mixed",
+        "moneyChange": "Mixed",
+        "system": "Mixed",
+        "vip": "Mixed",
+        "unlock": "Mixed"
+    },
+    "ATT_data":{
+        "game":"String",
+        "uid":"String",
+        "bet":"Number",
+        "profit":"Number"
+    }, 
+    "apply_vip_record":{
+        "id" : "String",
+        "uid":"String",
+        "createTime":"Number",
+        "cellPhone":"Number",
+        "nickname":"String",
+        "status" : "Number",
+        "remark" : "String"
+    },
+    "pay_type":{
+        "id":"Number",
+        "name":"String",
+        "isOpen":"Boolean"
+    }
+
+}

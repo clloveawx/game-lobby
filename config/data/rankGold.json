@@ -1,0 +1,17 @@
+[
+	{ "id": 1, "minGold": 5000000,"maxGold":20000000 },
+	{ "id": 2, "minGold": 4000000,"maxGold":15000000 },
+	{ "id": 3, "minGold": 3000000,"maxGold":10000000 },
+	{ "id": 4, "minGold": 2500000,"maxGold":8000000 },
+	{ "id": 5, "minGold": 2500000,"maxGold":6000000 },
+	{ "id": 6, "minGold": 1000000,"maxGold":5000000 },
+	{ "id": 7, "minGold": 500000, "maxGold": 5000000 },
+	{ "id": 8, "minGold": 500000, "maxGold": 3000000 },
+	{ "id": 9, "minGold": 400000, "maxGold": 2000000 },
+	{ "id": 10, "minGold": 300000, "maxGold":1000000 },
+	{ "id": 11, "minGold": 200000,"maxGold":500000 },
+	{ "id": 12, "minGold": 150000,"maxGold":500000 },
+	{ "id": 13, "minGold": 100000,"maxGold":500000 },
+	{ "id": 14, "minGold": 100000,"maxGold":500000 },
+	{ "id": 15, "minGold": 100000,"maxGold":500000 }
+]

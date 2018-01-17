@@ -1,0 +1,8 @@
+[
+	{ "id": 100, "name": "6千钻石", "dese": "购买60000金币", "price": 6, "diamond": 6000, "coinType": 1, "icon": "zs1" },
+	{ "id": 101, "name": "3万钻石", "dese": "购买300000金币", "price": 30, "diamond": 30000, "coinType": 1, "icon": "zs2" },
+	{ "id": 102, "name": "9.8万钻石", "dese": "购买980000金币", "price": 98, "diamond": 98000, "coinType": 1, "icon": "zs3" },
+	{ "id": 103, "name": "19.8万钻石", "dese": "购买1980000金币", "price": 198, "diamond": 198000, "coinType": 1, "icon": "zs4" },
+	{ "id": 104, "name": "32.8万钻石", "dese": "购买3280000金币", "price": 328, "diamond": 328000, "coinType": 1, "icon": "zs5" },
+	{ "id": 105, "name": "64.8万钻石", "dese": "购买6480000金币", "price": 648, "diamond": 648000, "coinType": 1, "icon": "zs6" }
+]

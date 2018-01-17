@@ -1,0 +1,10 @@
+
+
+[
+ { "id": "401", "name": "移动话费30元",           "dese": "兑换30元移动话费卡",          "icon": "YDphoneCard30", "price": 30, "coinType": 4 },
+ { "id": "402", "name": "联通话费30元",           "dese": "兑换30元联通话费卡",          "icon": "LTphoneCard30", "price": 30, "coinType": 4 },
+ { "id": "403", "name": "电信话费30元",           "dese": "兑换30元电信话费卡",           "icon": "DXphoneCard30",    "price": 30, "coinType": 4 },
+ { "id": "407", "name": "移动话费100元",          "dese": "兑换100元移动话费卡",        "icon": "YDphoneCard100",   "price": 100, "coinType": 4 },
+ { "id": "408", "name": "联通话费100元",          "dese": "兑换100元联通话费卡",        "icon": "LTphoneCard100",    "price": 100, "coinType": 4 },
+ { "id": "409", "name": "电信话费100元",          "dese": "兑换100元电信话费卡",         "icon": "DXphoneCard100",   "price": 100, "coinType": 4 }
+]
