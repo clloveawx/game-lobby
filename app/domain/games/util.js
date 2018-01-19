@@ -3,6 +3,9 @@
 const util = require('../../utils');
 const Promise = require('bluebird');
 const systemMgr = require('../../utils/db/dbMgr/systemMgr');
+const platformMgr = require('../../utils/db/dbMgr/platformMgr');
+const db = require('../../utils/db/mongodb');
+const util = require('../../utils');
 
 //奖池分配调控   (分配人数 参与分配的钱)
 const allotRegulation = util.curry((counts, money) =>{
@@ -15,9 +18,8 @@ const allotRegulation = util.curry((counts, money) =>{
 });
 
 //游戏权重
-const gameWeight = {
-  '7': 20, '1': 19, '2': 18, '10': 17, '4': 16, '12': 15, '8': 14,
-  '9': 13, '11': 12,'17': 11.5, '3': 11,'13':10,'14':9,'16':15.5,
+const gameWeight = {'11': 20, '9': 19, '8': 18, '17': 17, '16' :16, '1': 15,
+	'7': 14, '2': 13, '10': 12, '12': 11, '4': 10, '3': 9, '15': 8, '18': 7,
 };
 
 Object.assign(module.exports, {
@@ -144,12 +146,24 @@ Object.assign(module.exports, {
 	/**
    *游戏返回字段控制
 	 */
-	gameFieldsReturn(games){
-
-		return games.filter(g =>![].includes(g.nid)).map(game => {
-			const {nid, heatDegree, roomUserLimit, topicon, name, needBuy,time} = game;
-			return {nid, heatDegree, roomUserLimit, topicon, name, needBuy,time};
-		})
+	gameFieldsReturn(games, isPlatform = false){
+		if(isPlatform){
+			return games.map(g =>{
+				return {
+					nid: g.nid,
+					heatDegree: g.heatDegree,
+					roomUserLimit: g.roomUserLimit,
+					topicon: g.topicon,
+					name: g.name,
+					time: g.gameStartTime + g.gameHaveTime - Date.now(),
+				}
+			})
+		}else{
+			return games.filter(g =>![].includes(g.nid)).map(game => {
+				const {nid, heatDegree, roomUserLimit, topicon, name, needBuy, time} = game;
+				return {nid, heatDegree, roomUserLimit, topicon, name, needBuy, time};
+			})
+		}
 	},
 
 	//平台游戏显示 未购买的游戏
@@ -167,6 +181,128 @@ Object.assign(module.exports, {
 			return Promise.reject({code:500, error: '获取所有的系统游戏失败' + err});
 		});
 	},
+	
+	/**
+	 * 根据游戏判断环境并修改
+	 */
+	udtGameByEnv(gameInfo){
+		if(gameInfo.viper){
+			platformMgr.udtPlatformGame(gameInfo).then(() =>{
+				return Promise.resolve();
+			}).catch(err =>{
+				console.error('更新平台${gameInfo.viper}游戏${nid}失败', err);
+			});
+		}else{
+			systemMgr.udtGame(gameInfo.nid, gameInfo).then(() =>{
+				return Promise.resolve();
+			}).catch(err =>{
+				console.error('更新系统游戏${gameInfo.nid}失败', err);
+			});
+		}
+	},
+	
+	/**
+	 * 根据房间判断环境并修改
+	 */
+	udtRoomByEnv(roomInfo){
+		if(roomInfo.viper){
+			platformMgr.udtPlatformGameRoom(roomInfo).then(() =>{
+				return Promise.resolve();
+			}).catch(err =>{
+				console.error('更新平台${roomInfo.viper}游戏${roomInfo.nid}房间${roomInfo.roomCode}失败', err);
+			});
+		}else{
+			systemMgr.udtGameRoom(roomInfo.nid, roomInfo.roomCode, roomInfo).then(() =>{
+				return Promise.resolve();
+			}).catch(err =>{
+				console.error('更新系统游戏${roomInfo.nid}房间${roomInfo.roomCode}失败', err);
+			});
+		}
+	},
+	
+	/**
+	 * 渠道游戏开关控制显示的游戏列表
+	 */
+	channelGameSwich({player, games, gameVersion}){
+		if(gameVersion == 2){
+			return Promise.resolve(games);
+		}else{
+			const inviteCodeModel = db.getDao('invite_code_info');
+			//根据渠道下面的游戏开放 对渠道下的玩家显示
+			if(player.inviteCode){
+				inviteCodeModel.findOne({inviteCode: player.inviteCode}, function(err, codeInfo){
+					//查找顶级
+					const viper = codeInfo.viper;
+					inviteCodeModel.findOne({uid: viper},function(err, viperCodeInfo){
+						const  inviteGames = viperCodeInfo.games;
+						
+						if(!util.isVoid((inviteGames))){
+							return Promise.resolve(games.filter(game =>{
+								return inviteGames.find(ig => ig.nid == game.nid && ig.status === true);
+							}));
+						}else{
+							//这个是渠道下面的玩家,然后该渠道没有设置哪些游戏是否开放
+							return Promise.resolve(games);
+						}
+					});
+				});
+			}else{
+				//判断玩家是不是渠道
+				inviteCodeModel.findOne({uid: player.uid}, function(err, codeInfo){
+					if(codeInfo && !util.isVoid(codeInfo.games)){
+						const  inviteGames = codeInfo.games;
+						return Promise.resolve(games.filter(game =>{
+							return inviteGames.find(ig => ig.nid == game.nid && ig.status === true);
+						}));
+					}else{
+						return Promise.resolve(games);
+					}
+				});
+			}
+		}
+	},
+	
+	/**
+	 * 根据环境获取指定游戏房间
+	 */
+	getRoomByEnv({viper, nid, roomCode}){
+		if(viper){
+			platformMgr.getPlatformGameRoom({viper, nid, roomCode}).then(room =>{
+				return Promise.resolve(room);
+			}).catch(err =>{
+				return Promise.reject('获取平台${viper}游戏${nid}房间${roomCode}失败'+err);
+			});
+		}else{
+			systemMgr.getGameRoom({nid, roomCode}, function(err, room){
+				if(err){
+					return Promise.reject('获取系统游戏${nid}房间${roomCode}失败'+err);
+				}
+				return Promise.resolve(room);
+			});
+		}
+	},
+	
+	/**
+	 * 根据环境获取指定游戏
+	 */
+	getGameByEnv({viper, nid}){
+		if(viper){
+			platformMgr.getPlatformGame({viper, nid}, function(err, game){
+				if(err){
+					return Promise.reject('获取平台${viper}游戏${nid}失败'+err);
+				}
+				return Promise.resolve(game);
+			});
+		}else{
+			systemMgr.getGame({nid}, function(err, game){
+				if(err){
+					return Promise.reject('获取系统游戏${nid}失败'+err);
+				}
+				return Promise.resolve(game);
+			});
+		}
+	},
+	
 });
 
 // console.log(module.exports.jackpotAllot(10000, 5, 15000000))

@@ -4,6 +4,7 @@
  *   大厅数据统计
  */
 const redisClient = require('../redis').client();
+const Promise = require('bluebird');
 
 module.exports = {
 
@@ -39,4 +40,34 @@ module.exports = {
 	deleteplayerIntoSystem(uid){
 		return redisClient.srem('ordinaryEnvPlayers', uid);
 	},
+	
+	/**
+	 * 记录每个游戏处在机器列表的玩家
+	 * 添加
+	 */
+	addPlayerToRoomLists({viper, nid, uid, sid}){
+		const env = viper ? viper : 'system';
+		return redisClient.sadd(`${env}:${nid}:out:users`, JSON.stringify({uid, sid}));
+	},
+	/**
+	 * 记录每个游戏处在机器列表的玩家
+	 * 删除
+	 */
+	removePlayerFromRoomLists({viper, nid, uid, sid}){
+		const env = viper ? viper : 'system';
+		return redisClient.srem(`${env}:${nid}:out:users`, JSON.stringify({uid, sid}));
+	},
+	/**
+	 * 记录每个游戏处在机器列表的玩家
+	 * 获取
+	 */
+	getPlayerAtRoomLists({viper, nid}){
+		const env = viper ? viper : 'system';
+		return redisClient.smembers(`${env}:${nid}:out:users`).then(users =>{
+			return Promise.resolve(users.map(user => JSON.parse(user)));
+		});
+	},
+	
+	
+	
 };

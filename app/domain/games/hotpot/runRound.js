@@ -33,7 +33,7 @@ module.exports = (roomCode, memory, VIP_ENV, viper, app, room) => {
 				if(memoryEnv.rounds[roomCode].next){
 					_roundWork(timer)
 				}else{
-					console.log('清除定时器=========================')
+					console.log('清除定时器=========================');
 					clearTimeout(timer);
 					//清除回合
 					memoryEnv.rounds[roomCode] = {};

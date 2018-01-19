@@ -139,9 +139,9 @@ module.exports = (room, viper) => {
 	};
 	//构造回合
 	room.socialRound = {
-        now: 0,
+		now: 0,
 		status: Round.status.processing,
-		next: true,
-    };
+		next: true,     //表明回合会不会继续
+	};
 	startRound();
 };

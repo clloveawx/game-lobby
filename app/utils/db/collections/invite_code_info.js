@@ -7,8 +7,6 @@ const mongoose = require('mongoose');
 const plugin = require('../common/plugins');
 
 const Schema = mongoose.Schema;
-const ObjectId = Schema.ObjectId;
-const Mixed = Schema.Types.Mixed;
 
 const InviteCodeInfoSchema = new Schema({
 	inviteCode: {type: String, index: true},

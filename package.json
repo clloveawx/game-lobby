@@ -8,6 +8,7 @@
     "express": "^4.15.3",
     "ioredis": "^3.2.2",
     "mongoose": "^4.12.1",
+    "node": "^9.4.0",
     "node-schedule": "^1.2.3",
     "parse-json": "^4.0.0",
     "pomelo": "^2.2.5",

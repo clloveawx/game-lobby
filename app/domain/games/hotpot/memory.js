@@ -11,7 +11,7 @@ const Round = {
 	interval: {
 		betting: 30,               // 下注阶段
 		blocking: 4,               //封盘期
-        processing: 24,            // 开奖结算阶段
+		processing: 24,            // 开奖结算阶段
 	},
 	order: [status.betting, status.blocking, status.processing],
 };

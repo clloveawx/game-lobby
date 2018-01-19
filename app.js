@@ -7,7 +7,6 @@ const RouteUtil = require('./app/utils/RouteUtil');
 const init = require('./init');
 const http = require('./app/http/http');
 const RequestQueueFilter = require('./app/services/requestQueueFilter');
-global.winston = require('./winston');
 
 /**
  * Init app for client.
@@ -131,5 +130,4 @@ app.start();
 
 process.on('uncaughtException', function(err) {
   console.error(' Caught exception: ' + err.stack);
-  winston.error('异常错误: ', err.stack);
 });

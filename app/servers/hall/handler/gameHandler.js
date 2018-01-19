@@ -1,14 +1,14 @@
 'use strict';
 
-const PlayerMgr = require('../../../domain/hall/player/PlayerMgr');
-const Games = require('../../../domain/ordinaryPlatform/Games');
-const GamesMgr = require('../../../domain/ordinaryPlatform/GamesMgr');
-const vipPlatform = require('../../../domain/vipPlatform/Platform');
-const vipPlatformMgr = require('../../../domain/vipPlatform/PlatformMgr');
-const msgService = require('../../../services/MessageService');
+const async = require('async');
+const gutils = require('../../../domain/games/util');
+const {playerMgr, platformMgr, systemMgr, censusMgr} = require('../../../utils/db/dbMgr');
 const sessionService = require('../../../services/sessionService');
+const jsonMgr = require('../../../../config/data/JsonMgr');
+const msgService = require('../../../services/MessageService');
 const util = require('../../../utils');
 const db = require('../../../utils/db/mongodb');
+
 const pomelo = require('pomelo');
 
 module.exports = function(app) {
@@ -20,342 +20,528 @@ var gameHandler = function(app) {
 };
 
 /**
+ * created by CL
+ * 处理进入房间
+ */
+function dealEnterRoom({roomCode, session, fast = false}, next){
+	
+	if(roomCode == null){
+		return next(null, {code: 500, error: '缺少参数  hall.gameHandler.enterRoom'});
+	}
+	const {isVip, viper, uid, nid, sid} = gutils.sessionInfo(session);
+	const env = viper == null ? 'system' : viper;
+	const _app = this.app;
+	let minBet = 0, maxBet;   //777游戏房间押注额度控制
+	
+	async.waterfall([
+		cb =>{
+			playerMgr.getPlayer({uid}, function(err, player) {
+				if (err) {
+					return next(null, err);
+				}
+				if (!player) {
+					return next(null, {code: 500, error: `玩家不存在: ${uid}`});
+				}
+				if(player.vip && isVip){
+					return next(null, {code: 500, error: 'vip玩家不能进入机器!'})
+				}
+				//根据环境获取游戏
+				gutils.getGameByEnv({viper, nid}).then(game =>{
+					if(!game){
+						return next(null, {code: 500, error: `未找到游戏${nid}`});
+					}
+					if(nid !== game.nid){
+						return next(null, {code: 500, error:'玩家已进入其他游戏'});
+					}
+					//根据环境获取房间
+					gutils.getRoomByEnv({viper, nid, roomCode}).then(room =>{
+						if(!room){
+							return next(null, {code: 500, error: `未找到房间${roomCode}`});
+						}
+						if(room.users.find(user => user.uid === uid)){
+							return next(null, {code:500, error: '玩家已在游戏中'});
+						}
+						if(room.users.length === game.roomUserLimit){
+							return next(null, {code: 500, error: '该机器无法容纳更多玩家'});
+						}
+						return cb(null, player, game, room);
+					});
+				});
+			})
+		},
+		(player, game, room, cb) =>{
+			//处理777游戏  和 火锅游戏
+			if(nid === '1'){
+				
+				//处理能否进入房间控制 房间社交比赛 房间最小押注
+				const moneyType = isVip ? 'integral' : 'gold';
+				const avgAward = room.users.length === 0 ? 0 : room.matchDot / 0.1 / room.users.length;
+				const avgBet = avgAward / (600 / 10) / 0.71;
+				if(player[moneyType] >= avgBet * 5){
+					//房间里没有玩家并且房间里没有社交比赛回合时, 在该房间创建回合
+					if(room.users.length === 0 && room.socialRound == null){
+						//TODO  room会丢失引用关系，里面的处理已经不通了
+						require('../../../services/socialService')(room, viper);
+					}
+					
+					minBet = avgBet / 250 > 250000 ? 250000 : avgBet / 250;
+				}else{
+					return next(null, {code: 500, error: `进入该房间需要金额为${Math.ceil(avgBet * 5)}`});
+				}
+				
+				//处理最大押注解锁
+				if(player.unlock[nid] == null){
+					player.unlock[nid] = {};
+				}
+				if(player.unlock[nid][env] == null){
+					player.unlock[nid][env] = 0;
+				}
+				if(player[moneyType] * 0.1 >= player.unlock[nid][env] * 25){
+					player.unlock[nid][env] = Math.floor(player[moneyType] * 0.1 * 0.04);
+					if(player.unlock[nid][env] > 10000){
+						player.unlock[nid][env] = 10000;
+					}
+				}
+				maxBet = player.unlock[nid][env];
+				
+				return cb(null, player, game, room);
+			}else if(nid === '3'){
+				//对于火锅游戏,如果该房间没有开始回合，则开启回合
+				_app.rpc.huoguo.mainRemote.findRound(session, isVip, viper, roomCode, sid, uid, room, (doc) =>{
+					
+					if(room.users.filter(u =>!u.uid.startsWith("ai")).length <= 1 && room.socialRound === null){
+						require('../../../domain/games/hotpot/socialRound.js')(room, null, _app);
+						//this.app.rpc.huoguo.mainRemote.startSocialRound(null,room,function(){});
+					}
+					if(doc && doc.aiLeave){
+						// 如果需要从房间里离开一个机器人
+						const userIndex = room.users.findIndex(user => user.uid === doc.uid);
+						room.users.splice(userIndex, 1);
+						
+						//通知处在机器列表的所有玩家有人退出机器
+						censusMgr.getPlayerAtRoomLists({viper, nid}).then(msgUsers =>{
+							msgService.pushMessageByUids('changeRoomInfo', {
+								users: room.users,
+								nid,
+								roomCode,
+							}, msgUsers);
+						});
+					}
+					return cb(null, player, game, room);
+				});
+			}else{
+				return cb(null, player, game, room);
+			}
+		},
+		(player, game, room, cb) =>{
+			//处理移植的游戏
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			return cb(null, player, game, room);
+		}
+	], function(err, player, game, room){
+		
+		player.enterRoomTime = Date.now();
+		room.users.push({uid, sid});
+		sessionService.sessionSet(session, {roomCode});
+		
+		let envLGC = player.lastGameContents[env];
+		if(envLGC.nid != nid){
+			envLGC.nid = nid;
+		}
+		envLGC.room[nid] = roomCode;
+		
+		//通知前端有人进入机器
+		censusMgr.getPlayerAtRoomLists({viper, nid}).then(msgUsers =>{
+			msgService.pushMessageByUids('changeRoomInfo', {
+				users: room.users,
+				nid,
+				roomCode,
+			}, msgUsers);
+		});
+		
+		//保存玩家的修改
+		playerMgr.updatePlayer(player, function(err){
+			if(err){
+				console.error(`保存玩家${uid}的修改失败`, err);
+			}
+			//保存房间的修改
+			gutils.udtRoomByEnv(room).then(() =>{
+				return next(null, {
+					code:200,
+					user: player,
+					roomCode,
+					users: room.users,
+					minBet,
+					maxBet,
+					socialDot: room.socialDot
+				});
+			});
+		});
+	});
+}
+
+/**
+ * created by CL
  * 进入房间
  * @route：hall.gameHandler.enterRoom
  */
 gameHandler.prototype.enterRoom = function({roomCode}, session, next) {
-    if(roomCode == null){
-        return next(null, {code: 500, error: '缺少参数  hall.gameHandler.enterRoom'});
-    }
-    const isVip = session.get('VIP_ENV');
-    const viper = session.get('viper');
-    const uid = session.uid;
-    const nid = session.get('game');
-    const env = viper == null ? 'system' : viper;
-    const user = PlayerMgr.getPlayer(uid);
-    if(!user){
-        return next(null, {code: 500, error:'未找到玩家'});
-    }
-    if(user.vip && isVip){
-        return next(null, {code: 500, error: 'vip玩家不能进入机器!'})        
-    }
-    let game;
-    if(isVip){
-        game = vipPlatformMgr.getGameByUid(viper, nid);
-    }else{
-        game = GamesMgr.getGame(nid);
-    }
-    if(!game){
-        return next(null, {code: 500, error:'获取游戏信息失败'})
-    }
-    if(session.get('game') != game.nid){
-        return next(null, {code: 500, error:'玩家已进入其他游戏'});
-    }
-    // 获取游戏中的房间
-    const room = game.rooms.find(room => room.roomCode == roomCode);
 
-    if(!room){
-        return next(null, {code: 500, error:'机器未找到'});
-    }
-    if(room.users.find(user => user.uid == uid)){
-        return next(null, {code:500, error:'玩家已在游戏中'});
-    }
-    if(room.users.length == game.roomUserLimit){
-        return next(null, {code: 500, error:'该机器无法容纳更多玩家'});
-    }
-
-    // 进入游戏房间的条件判断
-    let minBet = 0, maxBet;
-    if(['1'].includes(nid)){
-        const avgAward = room.users.length === 0 ? 0 : room.matchDot / 0.1 / room.users.length;
-        const avgBet = avgAward / (600 / 10) / 0.71;
-        if(user[isVip ? 'integral' : 'gold'] >= avgBet * 5){
-            if(room.users.length === 0 && room.socialRound == null){
-                require('../../../services/socialService')(room);
-            }
-            minBet = avgBet / 250 > 250000 ? 250000 : avgBet / 250;
-        }else{
-            return next(null, {code: 500, error: `进入该房间需要金额为${Math.ceil(avgBet * 5)}`});
-        }
-
-        //处理游戏最大押注解锁
-        const moneyType = viper == null ? 'gold' : 'integral';
-        if(user.unlock[nid] == null){
-            user.unlock[nid] = {};
-        }
-        if(user.unlock[nid][env] == null){
-            user.unlock[nid][env] = 0;
-        }
-        if(user[moneyType] * 0.1 >= user.unlock[nid][env] * 25){
-            user.unlock[nid][env] = Math.floor(user[moneyType] * 0.1 * 0.04);
-            if(user.unlock[nid][env] > 10000){
-                user.unlock[nid][env] = 10000;
-            }
-        }
-        maxBet = user.unlock[nid][env];
-    }
-
-    if(nid == '3'){
-        //对于火锅游戏,如果该房间没有开始回合，则开启回合
-        let _app=this.app;
-        this.app.rpc.huoguo.mainRemote.findRound(session, isVip, session.get('viper'), roomCode, session.frontendId, uid, room, (doc) =>{
-            if(room.users.filter(u=>!u.uid.startsWith("ai")).length <= 1 && room.socialRound == null){//room.users.length === 0 &&
-                require('../../../domain/games/hotpot/socialRound.js')(room,null,_app);
-                //this.app.rpc.huoguo.mainRemote.startSocialRound(null,room,function(){});
-            }
-            if(doc && doc.aiLeave){
-                const userIndex = room.users.findIndex(user => user.uid == doc.uid);
-                room.users.splice(userIndex, 1);
-                const roomUids = [];
-                const users= room.users;
-                game.rooms.forEach(room => roomUids.concat(room.users.map(user =>user.uid)));
-                const msgUserIds = game.users.map(user => {
-                    return {uid:user.uid,sid:user.sid}
-                }).filter(obj => !roomUids.includes(obj.uid));
-                msgService.pushMessageByUids('changeRoomInfo', { //通知前端有人退出机器
-                    users,
-                    nid,
-                    roomCode,
-                }, msgUserIds);
-            }
-        });
-    }
-    if(nid == '1'){
-        room.users.forEach(u =>{
-            u.slotsGameEarnings = PlayerMgr.getPlayer(u.uid).slotsGameEarnings;
-        })
-    }
-    if(nid == '3'){
-        room.users.forEach(u =>{
-            if(!u.uid.startsWith("ai")){
-                u.hotpotGameEarnings = PlayerMgr.getPlayer(u.uid).hotpotGameEarnings;
-            }else{
-                this.app.rpc.huoguo.mainRemote.getRobotById(null,u.uid,function(data){
-                    if(data.code===200){
-                        u.hotpotGameEarnings=data.result.hotpotGameEarnings;
-                    }else{
-                        console.log("火锅获取机器人失败",data.msg);
-                    }
-                });
-            }
-        })
-    }
-
-    //进入移植游戏
-    switch (nid){
-        case '8':
-            this.app.rpc.games.baijiaRemote.entry(null,user.wrapGameData(),nid,roomCode,isVip,viper,(err)=>{
-                console.log(err);
-            });
-            break;
-        case '9':
-            this.app.rpc.games.bairenRemote.entry(null,user.wrapGameData(),nid,roomCode,isVip,viper,(err)=>{
-                console.log(err);
-            });
-            break;
-        case '11':
-            this.app.rpc.games.attRemote.entry(null,user.wrapGameData(),nid,roomCode,isVip,viper,uid,(err)=>{
-                console.log(err);
-            });
-            break;
-        case '15':
-            this.app.rpc.games.bipaiRemote.entry(null,user.wrapGameData(),nid,roomCode,isVip,viper,(err)=>{
-                console.log(err);
-            });
-            break;
-        case '17':
-            this.app.rpc.games.dotRemote.entry(null,user.wrapGameData(),nid,roomCode,isVip,viper,(err)=>{
-                console.log(err);
-            });
-            break;
-    }
-
-    user.enterRoomTime = Date.now();
-    room.users.push(user.roomuser());
-    sessionService.sessionSet(session, {'roomCode': roomCode});
-
-    const roomUids = [];
-    const users= room.users;
-    game.rooms.forEach(room => roomUids.concat(room.users.map(user =>user.uid)));
-
-    const msgUserIds = game.users.map(user => {
-        return {uid:user.uid,sid:user.sid}
-    }).filter(obj => !roomUids.includes(obj.uid));
-    msgService.pushMessageByUids('changeRoomInfo', { //通知前端有人进入机器
-        users,
-        nid,
-        roomCode,
-    }, msgUserIds);
-    
-    let envLGC = user.lastGameContents[env];	
-
-    if(envLGC.nid != nid){
-		envLGC.nid = nid;
-	}
-    envLGC.room[nid] = roomCode;
-
-    return next(null, {code:200, user: user.strip(), roomCode, users: room.users, minBet, maxBet, socialDot: room.socialDot});
 };
 
 /**
+ * created by CL
+ * 离开游戏(退出到游戏大厅页)
+ * @route: hall.gameHandler.leaveGame
+ */
+gameHandler.prototype.leaveGame = ({}, session, next) =>{
+
+  const {uid, nid, isVip, viper} = gutils.sessionInfo(session);
+	const env = viper == null ? 'system' : viper;
+	const nowTime = Date.now();
+	
+	let gameMembers;
+	async.waterfall([
+	  cb =>{
+		  playerMgr.getPlayer({uid}, function(err, player) {
+			  if (err) {
+				  return next(null, err);
+			  }
+			  if (!player) {
+				  return next(null, {code: 500, error: `玩家不存在: ${uid}`});
+			  }
+			  
+			  //根据环境获取 当前游戏 和 大厅游戏列表
+        if(isVip){
+	        platformMgr.getPlatform({viper}, function(err, platform) {
+		        if (err) {
+			        return next(null, err);
+		        }
+		        platformMgr.getPlatformGames({viper}, function(err, pgames){
+			        if(err){
+				        console.error(`查找平台${viper}下的所有游戏数据失败`, err);
+			        }
+			        platformMgr.getPlatformGame({viper, nid}, function(err, pgame){
+				        if(err){
+					        return next(null, err);
+				        }
+				        if(!pgame){
+					        return next(null, {code: 500, error: `未找到平台${viper}游戏${nid}`});
+				        }
+				        if(player.vip){   //vip房主
+					        const games = gutils.gameFieldsReturn(pgames, true);
+					        gutils.pGameNeedBuy(games).then(pgs =>{
+						        gameMembers = platform.gameMembers;
+					        	return cb(null, player, pgame, pgs);
+					        });
+				        }else{
+					        platform.removeGameMember(nid, uid);
+					        const games = gutils.gameFieldsReturn(pgames.filter(g => g.gameStartTime + g.gameHaveTime > nowTime), true);
+					        return cb(null, player, pgame, gamesWeightSort(games));     //非房主看不到每个游戏中的人数
+				        }
+			        })
+		        });
+	        });
+        }else{
+          systemMgr.getGame({nid}, function(err, game){
+          	if(err){
+          		return next(null, err);
+	          }
+	          systemMgr.allGames().then(games =>{
+	          	return cb(null, player, game, games);
+	          });
+          });
+        }
+		  });
+    },
+		(player, game, games, cb) =>{
+			if(!game){
+				return next(null, {code: 500, error: '游戏未找到 hall.gameHandler.leaveGame'})
+			}
+			//玩家离开游戏
+			const userIndex = game.users.findIndex(user => user.uid == uid);
+			game.users.splice(userIndex, 1);
+			sessionService.sessionSet(session, {game: null});
+			//保存游戏的修改
+			gutils.udtGameByEnv(game);
+			
+			const gameVersion = JsonMgr.get('gameBeat').getById(1).gameVersion;
+			//渠道游戏开关控制显示的游戏列表
+			gutils.channelGameSwich({player, games, gameVersion}).then(games =>{
+				return cb(null, player, games);
+			});
+		},
+  ], function(err, player, games){
+		const lastGame = player.lastGameContents[env].nid;
+		const lastRoom = player.lastGameContents[env].room;
+		
+		return next(null, {
+			code: 200,
+			games: gutils.gameFieldsReturn(games),
+			gameMembers,
+			lastGame,
+			lastRoom,
+		});
+  });
+};
+
+/**
+ * created by CL
+ * 奖池填充  (填充到 基础奖池)
+ * @route:hall.gameHandler.jackpotFilling
+ */
+gameHandler.prototype.jackpotFilling = ({nid, roomCode, num}, session, next) =>{
+	
+	const uid = session.uid;
+	
+	if(num == null){
+		return next(null, {code: 500, error: '请正确输入充值数量'});
+	}
+	if(nid == null){
+		nid = session.get('game');
+	}
+	if(!roomCode){
+		return next(null, {code: 500, error: '请输入房间编号'});
+	}
+	playerMgr.getPlayer({uid}, function(err, player) {
+		if(err) {
+			return next(null, err);
+		}
+		if (!player) {
+			return next(null, {code: 500, error: `玩家不存在: ${uid}`});
+		}
+		if(!player.vip){
+			return next(null, {code: 500, error: '没有充值资格'});
+		}
+		
+		//获取需要充值的游戏房间
+		platformMgr.getPlatformGameRoom({viper: player.viperId, nid, roomCode}).then(room =>{
+			if(!room){
+				return next(null, {code: 500, error: `未找到该平台${player.viperId}游戏${nid}房间${roomCode}`});
+			}
+			if(num < 0 && Math.abs(num) > room.jackpot){
+				return next(null, {code: 500, error: '积分扣除大于房间奖池不能进行扣除！'});
+			}
+			room.jackpot += parseInt(num);
+			player.vdot -= Number(num)  * 0.001;
+			
+			//保存房主和房间的修改
+			platformMgr.udtPlatformGameRoom(room).then(() =>{
+				playerMgr.updatePlayer(player, function(err){
+					if(err){
+						console.error(`保存玩家${uid}的修改失败`, err);
+					}
+				});
+			});
+			
+			msgService.pushMessageByUids('addCoin', {
+				vdot: player.vdot,
+			}, {uid, sid: player.sid});
+			return next(null, {code: 200,  jackpot: room.jackpot});
+		});
+	});
+};
+
+/**
+ * created by CL
+ * 请求slots777比赛的状态信息
+ * @route: hall.gameHandler.matchStatus
+ */
+gameHandler.prototype.matchStatus = ({}, session, next) =>{
+	
+	const {viper, nid, roomCode} = gutils.sessionInfo(session);
+
+	//根据环境获取房间
+	gutils.getRoomByEnv({viper, nid, roomCode}).then(room =>{
+		if(!room){
+			return next(null, {code: 500, error: '请求slots777比赛的状态信息出错:游戏房间未找到'});
+		}
+		return next(null, {code: 200, status: room.socialRound, socialDot: room.socialDot});
+	}).catch(err =>{
+		return next(null, {code: 500, error: '获取房间失败'});
+	});
+};
+
+/**
+ * created by CL
  * 快速进入房间
  * @route: hall.gameHandler.enterRoomQuickly
  */
 gameHandler.prototype.enterRoomQuickly = ({}, session, next) =>{
-    const uid = session.uid;
-    const nid = session.get('game');
-    const isVip = session.get('VIP_ENV');
-    const viper = session.get('viper');
-    const user = PlayerMgr.getPlayer(uid);
-    const env = viper == null ? 'system' : viper;
-    if(!user){
-        return next(null, {code: 500, error:'未找到玩家'});
-    }
-    if(user.vip && isVip){
-        return next(null, {code: 500, error: 'vip玩家不能进入机器!'})        
-    }
-    let game;
-    if(isVip){
-        game = vipPlatformMgr.getGameByUid(viper, nid);
-        user.enterRoomTime = Date.now();
-    }else{
-        game = GamesMgr.getGame(nid);
-    }
-    if(!game){
-        return next(null, {code: 500, error:'获取游戏信息失败'})
-    }
- 
-    const canUseRooms = util.clone(game.rooms).filter(room => room.users.length < game.roomUserLimit);
-    const selectRoom = util.sortWith([
-        (r1, r2) => r1.users.length - r2.users.length,
-        (r1, r2) => r2.jackpot - r1.jackpot,
-        (r1, r2) => Number(r1.roomCode) - Number(r2.roomCode)
-    ])(game.rooms.filter(room => {
-        if(['1'].includes(nid)){
-            const avgAward = room.users.length === 0 ? 0 : room.matchDot / 0.1 / room.users.length;
-            const avgBet = avgAward / (600 / 10) / 0.71;
-            return (room.users.length < game.roomUserLimit) && (user[isVip ? 'integral' : 'gold'] >= avgBet * 5);
-        }else{
-            return room.users.length < game.roomUserLimit
-        }    
-    }))[0];
+	
+	const {uid, nid, isVip, viper, sid} = gutils.sessionInfo(session);
 
-    if(selectRoom == null){
-        if(canUseRooms.length == 0){
-            return next(null, {code: 500, error: '没有空位机'});
-        }else{
-            return next(null, {code: 500, error: '金额不足'});
-        }
-    }
-    const room = game.rooms.find(room => room.roomCode == selectRoom.roomCode);
-
-    // 进入游戏房间的条件判断
-    let minBet = 0, maxBet;
-    if(['1'].includes(nid)){
-        const avgAward = room.users.length === 0 ? 0 : room.matchDot / 0.1 / room.users.length;
-        const avgBet = avgAward / (600 / 10) / 0.71;
-        if(user[isVip ? 'integral' : 'gold'] >= avgBet * 5){
-            if(room.users.length === 0 && room.socialRound == null){
-                require('../../../services/socialService')(room);
-            }
-            minBet = avgBet / 250 > 250000 ? 250000 : avgBet / 250;
-        }else{
-            return next(null, {code: 500, error: `进入房间${selectRoom.roomCode}需要金额为${Math.ceil(avgBet * 5)}`});
-        }
-
-        //处理游戏最大押注解锁
-        const moneyType = viper == null ? 'gold' : 'integral';
-        if(user.unlock[nid] == null){
-            user.unlock[nid] = {};
-        }
-        if(user.unlock[nid][env] == null){
-            user.unlock[nid][env] = 0;
-        }
-        if(user[moneyType] * 0.1 >= user.unlock[nid][env]){
-            user.unlock[nid][env] = Math.floor(user[moneyType] * 0.1 * 0.04);
-        }
-        maxBet = user.unlock[nid][env];
-    } 
-
-    //移植游戏进入
-    switch (nid){
-        case '8'://百家
-            pomelo.app.rpc.games.baijiaRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,(err)=>{
-                console.log(err);
-            });
-            break;
-        case '9'://百人
-            pomelo.app.rpc.games.bairenRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,(err)=>{
-                console.log(err);
-            });
-            break;
-        case '11'://att
-            pomelo.app.rpc.games.attRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,uid,(err)=>{
-                console.log(err);
-            });
-            break;
-        case '15'://比牌
-            pomelo.app.rpc.games.bipaiRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,(err)=>{
-                console.log(err);
-            });
-            break;
-        case '17'://21点
-            pomelo.app.rpc.games.botRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,(err)=>{
-                console.log(err);
-            });
-            break;
-    }
-    if(nid == '3'){
-        //对于火锅游戏,如果该房间没有开始回合，则开启回合
-        let _app=pomelo.app;
-        pomelo.app.rpc.huoguo.mainRemote.findRound(session, isVip, session.get('viper'), room.roomCode, session.frontendId, uid, room, (doc) =>{
-            if(room.users.filter(u=>!u.uid.startsWith("ai")).length===1 && room.socialRound == null){//room.users.length === 0 &&
-                require('../../../domain/games/hotpot/socialRound')(room,null,_app);
-                //this.app.rpc.huoguo.mainRemote.startSocialRound(null,room,function(){});
-            }
-            if(doc && doc.aiLeave){
-                const userIndex = room.users.findIndex(user => user.uid == doc.uid);
-                room.users.splice(userIndex, 1);
-                const roomUids = [];
-                const users= room.users;
-                game.rooms.forEach(room => roomUids.concat(room.users.map(user =>user.uid)));
-                const msgUserIds = game.users.map(user => {
-                    return {uid:user.uid,sid:user.sid}
-                }).filter(obj => !roomUids.includes(obj.uid));
-                msgService.pushMessageByUids('changeRoomInfo', { //通知前端有人退出机器
-                    users,
-                    nid,
-                    roomCode: room.roomCode,
-                }, msgUserIds);
-            }
-        });
-    }
-
-    room.users.push(user.roomuser());
-    sessionService.sessionSet(session, {'roomCode': room.roomCode});
-
-    const roomUids = [];
-    const users= room.users;
-    game.rooms.forEach(room => roomUids.concat(room.users.map(user =>user.uid)));
-    const msgUserIds = game.users.map(user => {
-        return {uid:user.uid,sid:user.sid}
-    }).filter(obj => !roomUids.includes(obj.uid));
-
-    msgService.pushMessageByUids('changeRoomInfo', { //通知前端有人进入机器
-        users,
-        nid:nid,
-        roomCode : room.roomCode,
-    }, msgUserIds);
-
-    let envLGC = user.lastGameContents[env];	
-    
-    if(envLGC.nid != nid){
-        envLGC.nid = nid;
-    }
-    envLGC.room[nid] = room.roomCode;
-
-    return next(null, {code:200, user: user.strip(), roomCode: room.roomCode, minBet, maxBet});
+	const user = PlayerMgr.getPlayer(uid);
+	const env = viper == null ? 'system' : viper;
+	if(!user){
+		return next(null, {code: 500, error:'未找到玩家'});
+	}
+	if(user.vip && isVip){
+		return next(null, {code: 500, error: 'vip玩家不能进入机器!'})
+	}
+	let game;
+	if(isVip){
+		game = vipPlatformMgr.getGameByUid(viper, nid);
+		user.enterRoomTime = Date.now();
+	}else{
+		game = GamesMgr.getGame(nid);
+	}
+	if(!game){
+		return next(null, {code: 500, error:'获取游戏信息失败'})
+	}
+	
+	const canUseRooms = util.clone(game.rooms).filter(room => room.users.length < game.roomUserLimit);
+	const selectRoom = util.sortWith([
+		(r1, r2) => r1.users.length - r2.users.length,
+		(r1, r2) => r2.jackpot - r1.jackpot,
+		(r1, r2) => Number(r1.roomCode) - Number(r2.roomCode)
+	])(game.rooms.filter(room => {
+		if(['1'].includes(nid)){
+			const avgAward = room.users.length === 0 ? 0 : room.matchDot / 0.1 / room.users.length;
+			const avgBet = avgAward / (600 / 10) / 0.71;
+			return (room.users.length < game.roomUserLimit) && (user[isVip ? 'integral' : 'gold'] >= avgBet * 5);
+		}else{
+			return room.users.length < game.roomUserLimit
+		}
+	}))[0];
+	
+	if(selectRoom == null){
+		if(canUseRooms.length == 0){
+			return next(null, {code: 500, error: '没有空位机'});
+		}else{
+			return next(null, {code: 500, error: '金额不足'});
+		}
+	}
+	const room = game.rooms.find(room => room.roomCode == selectRoom.roomCode);
+	
+	// 进入游戏房间的条件判断
+	let minBet = 0, maxBet;
+	if(['1'].includes(nid)){
+		const avgAward = room.users.length === 0 ? 0 : room.matchDot / 0.1 / room.users.length;
+		const avgBet = avgAward / (600 / 10) / 0.71;
+		if(user[isVip ? 'integral' : 'gold'] >= avgBet * 5){
+			if(room.users.length === 0 && room.socialRound == null){
+				require('../../../services/socialService')(room);
+			}
+			minBet = avgBet / 250 > 250000 ? 250000 : avgBet / 250;
+		}else{
+			return next(null, {code: 500, error: `进入房间${selectRoom.roomCode}需要金额为${Math.ceil(avgBet * 5)}`});
+		}
+		
+		//处理游戏最大押注解锁
+		const moneyType = viper == null ? 'gold' : 'integral';
+		if(user.unlock[nid] == null){
+			user.unlock[nid] = {};
+		}
+		if(user.unlock[nid][env] == null){
+			user.unlock[nid][env] = 0;
+		}
+		if(user[moneyType] * 0.1 >= user.unlock[nid][env]){
+			user.unlock[nid][env] = Math.floor(user[moneyType] * 0.1 * 0.04);
+		}
+		maxBet = user.unlock[nid][env];
+	}
+	
+	//移植游戏进入
+	switch (nid){
+		case '8'://百家
+			pomelo.app.rpc.games.baijiaRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,(err)=>{
+				console.log(err);
+			});
+			break;
+		case '9'://百人
+			pomelo.app.rpc.games.bairenRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,(err)=>{
+				console.log(err);
+			});
+			break;
+		case '11'://att
+			pomelo.app.rpc.games.attRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,uid,(err)=>{
+				console.log(err);
+			});
+			break;
+		case '15'://比牌
+			pomelo.app.rpc.games.bipaiRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,(err)=>{
+				console.log(err);
+			});
+			break;
+		case '17'://21点
+			pomelo.app.rpc.games.botRemote.entry(null,user.wrapGameData(),nid,room.roomCode,isVip,viper,(err)=>{
+				console.log(err);
+			});
+			break;
+		case '18':// 炸金花
+			this.app.rpc.poker.fgfRemote.entry(null,user.wrapGameData(),nid,roomCode,isVip,viper,(err)=>{
+				if (err) {
+					return next(null, {code: 500, error: err});
+				}
+			});
+			break;
+	}
+	if(nid == '3'){
+		//对于火锅游戏,如果该房间没有开始回合，则开启回合
+		let _app=pomelo.app;
+		pomelo.app.rpc.huoguo.mainRemote.findRound(session, isVip, session.get('viper'), room.roomCode, session.frontendId, uid, room, (doc) =>{
+			if(room.users.filter(u=>!u.uid.startsWith("ai")).length===1 && room.socialRound == null){//room.users.length === 0 &&
+				require('../../../domain/games/hotpot/socialRound')(room,null,_app);
+				//this.app.rpc.huoguo.mainRemote.startSocialRound(null,room,function(){});
+			}
+			if(doc && doc.aiLeave){
+				const userIndex = room.users.findIndex(user => user.uid == doc.uid);
+				room.users.splice(userIndex, 1);
+				const roomUids = [];
+				const users= room.users;
+				game.rooms.forEach(room => roomUids.concat(room.users.map(user =>user.uid)));
+				const msgUserIds = game.users.map(user => {
+					return {uid:user.uid,sid:user.sid}
+				}).filter(obj => !roomUids.includes(obj.uid));
+				msgService.pushMessageByUids('changeRoomInfo', { //通知前端有人退出机器
+					users,
+					nid,
+					roomCode: room.roomCode,
+				}, msgUserIds);
+			}
+		});
+	}
+	
+	room.users.push(user.roomuser());
+	sessionService.sessionSet(session, {'roomCode': room.roomCode});
+	
+	const roomUids = [];
+	const users= room.users;
+	game.rooms.forEach(room => roomUids.concat(room.users.map(user =>user.uid)));
+	const msgUserIds = game.users.map(user => {
+		return {uid:user.uid,sid:user.sid}
+	}).filter(obj => !roomUids.includes(obj.uid));
+	
+	msgService.pushMessageByUids('changeRoomInfo', { //通知前端有人进入机器
+		users,
+		nid:nid,
+		roomCode : room.roomCode,
+	}, msgUserIds);
+	
+	let envLGC = user.lastGameContents[env];
+	
+	if(envLGC.nid != nid){
+		envLGC.nid = nid;
+	}
+	envLGC.room[nid] = room.roomCode;
+	
+	return next(null, {code:200, user: user.strip(), roomCode: room.roomCode, minBet, maxBet});
 };
+
 
 /**
  * 离开房间(退出到机器列表页)
@@ -549,106 +735,7 @@ gameHandler.prototype.leaveRoom = function({saveProfit = false}, session, next){
     }
 };
 
-/**
- * 离开游戏(退出到游戏大厅页)
- * @route: hall.gameHandler.leaveGame
- */
-gameHandler.prototype.leaveGame = ({}, session, next) =>{
-    const uid = session.uid;
-    const nid = session.get('game');
-    const isVip = session.get('VIP_ENV');
-    const viper = session.get('viper');
-    const user = PlayerMgr.getPlayer(uid);
-    const env = viper == null ? 'system' : viper;
-    if(!user){
-        return next(null, {code: 500, error:'未找到玩家'});
-    }
-    let game, games, gameMembers;
-    if(isVip){
-        const platform = vipPlatformMgr.getPlatform(viper);
-        game = vipPlatformMgr.getGameByUid(viper, nid);
-        const gameWeight = {'11':20,'8':19,'1':18,'4':17,'3':16,'10':15,'7':14,'16':13,'12':12,'2':11,'9':10,'13':9,'14':8};
-        if(user.vip){
-            const nowTime = Date.now();
-                games = platform.games.map(m=>{
-                return{
-                    nid:m.nid,
-                    heatDegree:m.heatDegree,
-                    roomUserLimit:m.roomUserLimit,
-                    topicon: m.topicon,
-                    name:m.name,
-                    time: m.gameStartTime + m.gameHaveTime - nowTime,
-                }
-            })
-            const addGames = util.clone(GamesMgr.Games()).filter(game => !platform.games.map(g => g.nid).includes(game.nid));
-            addGames.forEach(g => g.needBuy = true);
-            games = games.sort((g1, g2) => gameWeight[g2.nid] - gameWeight[g1.nid]).concat(addGames).filter(g =>![].includes(g.nid));
-            gameMembers = platform.gameMembers;
-        }else{
-            platform.removeGameMember(nid, uid);
-            games = platform.games.filter(g =>![].includes(g.nid)).sort((g1, g2) => gameWeight[g2.nid] - gameWeight[g1.nid]);
-        }
-    }else{
-        game = GamesMgr.getGame(nid);
-        games = GamesMgr.Games().filter(g =>![].includes(g.nid));
-    }
 
-    if(!game){
-        return next(null, {code: 500, error: '游戏未找到 hall.gameHandler.leaveGame'})
-    }
-    const userIndex = game.users.findIndex(user => user.uid == uid);
-    game.users.splice(userIndex, 1);
-    sessionService.sessionSet(session,{game:null});
-    
-    const lastGame = user.lastGameContents[env].nid;
-    let list = [];
-    const inviteCodeInfo = db.getDao('invite_code_info');
-     new Promise((resolve, reject) =>{
-                    if(user.inviteCode){ //根据渠道下面的玩家对绑定的邀请码来进行查询如果渠道有邀请码同时设置了那些游戏是否开放
-                        inviteCodeInfo.findOne({inviteCode:user.inviteCode},function(err,invites){
-                                const viper = invites.viper;
-                                inviteCodeInfo.findOne({uid:viper},function(err,inviteViper){
-                                    const  inviteGames = inviteViper.games;
-                                    if(inviteGames !=0){
-                                        games.forEach(m=>{
-                                                const temp = inviteGames.find(x => x.nid === m.nid);
-                                                if(temp.status === true){
-                                                    list.push(m);
-                                                }
-                                        })
-                                        resolve();
-                                    }else{ //这个是渠道下面的玩家,然后该渠道没有设置哪些游戏是否开放
-                                        list = games;
-                                        resolve();
-                                    }
-                                });
-                        });
-                    }else{
-                        inviteCodeInfo.findOne({uid:user.uid},function(err,invite){
-                            if(invite && invite.games.length !=0){ //这个是渠道本身没有邀请码进行查询自己开放了哪些有些
-                                const  inviteGames = invite.games;
-                                    games.forEach(m=>{
-                                            const temp = inviteGames.find(x => x.nid === m.nid);
-                                            if(temp.status == true){
-                                                list.push(m);
-                                            }
-                                    })
-                                    resolve();
-                            }else{ //这个是渠道本身进入的接口然后没有设置哪些游戏开放
-                                list = games;
-                                resolve();
-                            }
-
-                        });
-                    }
-     })
-    .then(function(){
-            return next(null, {code: 200, games: list.map(game => {
-                const {nid, heatDegree, roomUserLimit, topicon, name, needBuy,time} = game;
-                return {nid, heatDegree, roomUserLimit, topicon, name, needBuy,time};
-            }), gameMembers, lastGame, lastRoom: user.lastGameContents[env].room});
-    })
-};
 
 /**
  * 奖池填充  (填充到 基础奖池)
@@ -707,6 +794,10 @@ gameHandler.prototype.matchStatus = ({}, session, next) =>{
     console.error('当前房间社交点',room.socialDot)
     return next(null, {code: 200, status: room.socialRound, socialDot: room.socialDot});
 };
+
+
+
+
 
 /**
  * 查看某个游戏的联机大奖奖池
