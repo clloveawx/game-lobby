@@ -6,6 +6,7 @@ const systemMgr = require('../../utils/db/dbMgr/systemMgr');
 const platformMgr = require('../../utils/db/dbMgr/platformMgr');
 const db = require('../../utils/db/mongodb');
 const util = require('../../utils');
+const MessageService = require('../../services/MessageService');
 
 //奖池分配调控   (分配人数 参与分配的钱)
 const allotRegulation = util.curry((counts, money) =>{
@@ -202,6 +203,26 @@ Object.assign(module.exports, {
 	},
 	
 	/**
+	 *根据游戏判断环境并获取所有游戏房间
+	 */
+	getRoomsByGame(game){
+		const {viper, nid} = game;
+		try{
+			if(viper){
+				platformMgr.getPlatformGameRooms({viper, nid, roomInfo: true}, function(err, rooms){
+					return Promise.resolve(rooms);
+				});
+			}else{
+				systemMgr.allGameRooms(nid, true).then(rooms =>{
+					return Promise.resolve(rooms);
+				});
+			}
+		}catch(err){
+			return Promise.reject('根据游戏判断环境并获取所有游戏房间失败', err);
+		}
+	},
+	
+	/**
 	 * 根据房间判断环境并修改
 	 */
 	udtRoomByEnv(roomInfo){
@@ -302,6 +323,80 @@ Object.assign(module.exports, {
 			});
 		}
 	},
+	
+	/**
+	 * @params   {gusers: 游戏中的玩家}
+	 * 根据环境实例化新房间
+	 * 同时将房间加入游戏
+	 * 给处在机器列表的玩家发通知
+	 */
+	insRoom({isVip, viper, nid}, gusers){
+	
+		let newRoom, roomsusers = [];
+		const _this = this;
+		return new Promise((resolve, reject) =>{
+			if(isVip){
+				//实例化一个平台房间
+				platformMgr.getPlatformGameRooms({viper, nid, roomInfo: true}, function(err, rooms){
+					newRoom = platformMgr.instancePlatformRoom({viper, nid, roomCode: util.pad(rooms.length + 1, 3)});
+					platformMgr.udtPlatformGameRoom(newRoom).then(() =>{
+						roomsusers = rooms.reduce((roomusers, room) =>{   //所有在游戏房间里的玩家
+							return roomusers.concat(room.users);
+						}, []);
+						_this.noticeRoomAdd({newRoom, nid, isVip, roomsuserIds: roomsusers.map(u => u.uid), gusers});
+					}).catch(err =>{
+						console.error(`游戏${nid}中加入房间${newRoom.roomCode}失败`, err);
+						return reject(`游戏${nid}中加入房间${newRoom.roomCode}失败`);
+					});
+					return resolve(newRoom);
+				});
+			}else{
+				systemMgr.allGameRooms(nid, true).then(rooms =>{
+					newRoom = systemMgr.instanceRoom({nid, roomCode: util.pad(rooms.length + 1, 3)});
+					systemMgr.udtGameRoom(nid, newRoom.roomCode, newRoom).then(() =>{
+						roomsusers = rooms.reduce((roomusers, room) =>{
+							return roomusers.concat(room.users);
+						}, []);
+						_this.noticeRoomAdd({newRoom, nid, isVip, roomsuserIds: roomsusers.map(u => u.uid), gusers});
+					}).catch(err =>{
+						console.error(`游戏${nid}中加入房间${newRoom.roomCode}失败`, err);
+						return reject(`游戏${nid}中加入房间${newRoom.roomCode}失败`);
+					});
+					return resolve(newRoom);
+				});
+			}
+		});
+	},
+
+	/**
+	 * 当有新的房间生成的时候通知在机器列表中的玩家增加房间
+	 */
+	noticeRoomAdd({newRoom, nid, isVip, roomsuserIds, gusers}){
+		//在游戏中而不在房间中的玩家即为房间列表中的玩家
+		const msgusers = gusers.filter(user => !roomsuserIds.includes(user.id));
+		
+		MessageService.pushMessageByUids('addRoom', {
+			newRoom,
+			gameId: nid,
+			vipScene: isVip,
+		}, msgusers);
+	},
+	
+	/**
+	 * 新加房间的奖池显示
+	 * upsert为true代表重新生成的房间
+	 */
+	newRoomJackpot(newRoom, upsert){
+		newRoom.jackpotShow.otime = Date.now();
+		newRoom.jackpotShow.ctime = Date.now();
+		newRoom.jackpotShow.show = upsert ? util.random(500000, 1000000) : newRoom.jackpot;
+		newRoom.jackpotShow.rand = (0 <= newRoom.jackpot && newRoom.jackpot < 2000000)
+			? newRoom.jackpot * 0.001 : util.random(200, 500);
+		return newRoom;
+	}
+	
+	
+	
 	
 });
 

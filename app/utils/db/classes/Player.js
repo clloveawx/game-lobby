@@ -6,24 +6,28 @@
 class Player {
 
 	constructor (opts) {
+		
 		this.uid = opts.uid;
 		this.sex = opts.sex||0;
 		this.nameChanged = opts.nameChanged ||false;
 		this.addRmb = opts.addRmb || 0;
 		this.vip = opts.vip || false;
-		this.props = opts.props || 0;  //碎片
+		this.gold = opts.gold;              //金币分成普通金币 和充值金币  1-普通金币 2-充值金币
+		this.nickname = opts.nickname;      //昵称
+		this.headurl = opts.headurl;        //头像
+		this.props = opts.props || 0;       //奖券
 		this.isPrompting = opts.isPrompting || false;
-		this.vipStartTime = opts.vipStartTime||0;           // vip开始时间
+		this.vipStartTime = opts.vipStartTime||0;              // vip开始时间
 		this.vipEffectiveTime = opts.vipEffectiveTime||0;   	 // vip有效时间
-		this.vdot = opts.vdot || 0;  //房主的 v点
+		this.vdot = opts.vdot || 0;                            //房主的 v点
 		this.inviteCode = opts.inviteCode || '';     // 邀请码
-		this.loginTime = opts.loginTime;   //登录时间
-		this.lastLogoutTime = opts.lastLogoutTime || 0; // 最后离线时间
+		this.loginTime = opts.loginTime;             //登录时间
+		this.lastLogoutTime = opts.lastLogoutTime || 0;  // 最后离线时间
 		this.createTime = opts.createTime || Date.now(); // 创建时间
 		this.gamesRecord = opts.gamesRecord || {};       //游戏记录
 		this.enterRoomTime = opts.enterRoomTime;  //进入房间时的时间戳
 		this.leaveRoomTime = opts.leaveRoomTime;  //离开房间时的时间戳
-		this.integral = opts.integral || 0;   //积分
+		this.integral = opts.integral || 0;       //积分
 		this.roomProfit = opts.roomProfit || 0;  //玩家在某个房间的净收益(vip场)
 		this.alipay = opts.alipay|| '';//支付宝帐号
 		this.inviteCodeBindTime = opts.inviteCodeBindTime||0;   //玩家建立vip平台的时间

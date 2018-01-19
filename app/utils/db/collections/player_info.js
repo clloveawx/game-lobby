@@ -18,51 +18,47 @@ const PlayerInfoSchema = new Schema({
 	_uid: {type: ObjectId, ref: 'user_info'},   //用来引用user_info
 	uid: {type: String, index: true},
 	sex: Number,
-	integral: Number,
-	addRmb: Number,
+	integral: Number,      //积分
+	gold: {},              //金币分成普通金币 和充值金币  1-普通金币 2-充值金币
+	nickname: String,      //昵称
+	headurl: String,       //头像
+	addRmb: Number,        //立即充值
 	selfbank: Number,
-	inviteCode: {type: String, index: true},
-	lastLogoutTime: Number,
-	loginTime: Number,
+	inviteCode: {type: String, index: true},   //邀请码
+	lastLogoutTime: Number,                    //上次登录离线时间
+	loginTime: Number,                         //登录时间
 	createTime: Number,
-	vip: Boolean,
-	nameChanged: Boolean,
+	vip: Boolean,                               //是否是vip
+	nameChanged: Boolean,                       //是否改过名
 	isPrompting: Boolean,
 	vipStartTime: Number,
-	props: Number,
+	props: Number,                               //奖券
 	vipEffectiveTime: Number,
-	vdot: Number,
-	gamesRecord: Mixed,
-	alipay: String,
+	vdot: Number,                                //v点
+	gamesRecord: Mixed,                          //游戏记录  可查看是否是新人
+	alipay: String,                              //支付宝
 	inviteCodeBindTime: Number,
-	isRobot: Number,
-	viperId: String,
-	needPlatform: Boolean,
+	isRobot: Number,                             //是否是机器人
+	viperId: String,                             //所在平台房主uid
+	needPlatform: Boolean,                       //vip玩家是否需要新建平台
 
-	pirateMiniGames: {},
-	pirateMiniGamesIntegral: {},
-	pirateBox: [],
-	pirateBoxIntegral:[],
-	freespinNum: Number,
-	freespinNumIntegral: Number,
+	// pirateMiniGames: {},
+	// pirateMiniGamesIntegral: {},
+	// pirateBox: [],
+	// pirateBoxIntegral:[],
+	// freespinNum: Number,
+	// freespinNumIntegral: Number,
 
-	protocolAgree: Boolean,
-	allowances: Mixed,
-	renewalReminder: Boolean,
-	rechargeReminder: Boolean,
-	loginCount: Number,
-	unlock: {},
-	lastGameContents: {},
+	protocolAgree: Boolean,            //是否同意运营协议
+	allowances: Mixed,                 //低保  -num:今日可领取金额  -today:今日是否领取 -tomNum: 明日可领取数量
+	loginCount: Number,                //登录次数
+	unlock: {},                        //游戏押注解锁
+	lastGameContents: {},              //最近游戏 最近房间记录
 	address: String,
-	roulette: Number,
-	addExchange: Number,
-	dailyIndianaSign: Mixed,
-	monthlyCard: Mixed,
-
-	isOpenAgency: Boolean,
-	remark: String,
-	openTime: Number,
-	type: Number,
+	addExchange: Number,               //玩家累计兑换话费卡总额
+	dailyIndianaSign: Mixed,           //每日夺宝  -alert:是否提示 -sign:是否可签到
+	monthlyCard: Mixed,                //月卡  -active:是否激活 -receiveDates: 领取日期 -today: 今日是否可领取 -joined: 是否参加过
+	luckyAround:{},                    //幸运转转乐
 });
 
 //PlayerInfoSchema.plugin(plugin, {index: true});

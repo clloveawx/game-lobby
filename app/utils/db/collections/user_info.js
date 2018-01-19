@@ -12,13 +12,18 @@ const UserInfoSchema = new Schema({
 
 	guestid: String,   //游客id
 	uid: {type: String, index: true},
-	gold: {},   //金币分成普通金币 和充值金币  1-普通金币 2-充值金币
-	nickname: String,
 	loginIP: [],
-	cellphone: String,
-	password: String,
-	headurl: String,
+	cellPhone: String,
+	passWord: String,      //手机号登录密码
 	isOnline: Boolean,
+	userName: String,      //账号
+	userWord: String,      //账号登录密码
+	isOpenAgency: Boolean,
+	remark: String,
+	openTime: Number,
+	email: String,
+	type: Number,
+	
 });
 
 UserInfoSchema.plugin(plugin, {index: true});

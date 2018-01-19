@@ -27,67 +27,6 @@ var mainHandler = function(app) {
 
 /**
  * created by CL
- * created for <enterGame>
- * @params   {gusers: 游戏中的玩家}
- * 根据环境实例化新房间
- * 同时将房间加入游戏
- * 给处在机器列表的玩家发通知
- */
-function insRoom({isVip, viper, nid}, gusers){
-
-	let newRoom, roomsusers = [];
-	return new Promise((resolve, reject) =>{
-		if(isVip){
-			//实例化一个平台房间
-			platformMgr.getPlatformGameRooms({viper, nid, roomInfo: true}, function(err, rooms){
-				newRoom = platformMgr.instancePlatformRoom({viper, nid, roomCode: util.pad(rooms.length + 1, 3)});
-				platformMgr.udtPlatformGameRoom(newRoom).then(() =>{
-					roomsusers = rooms.reduce((roomusers, room) =>{   //所有在游戏房间里的玩家
-						return roomusers.concat(room.users);
-					}, []);
-					noticeRoomAdd({newRoom, nid, isVip, roomsuserIds: roomsusers.map(u => u.uid), gusers});
-				}).catch(err =>{
-					console.error(`游戏${nid}中加入房间${newRoom.roomCode}失败`, err);
-					return reject(`游戏${nid}中加入房间${newRoom.roomCode}失败`);
-				});
-				return resolve(newRoom);
-			});
-		}else{
-			systemMgr.allGameRooms(nid, true).then(rooms =>{
-				newRoom = systemMgr.instanceRoom({nid, roomCode: util.pad(rooms.length + 1, 3)});
-				systemMgr.udtGameRoom(nid, newRoom.roomCode, newRoom).then(() =>{
-					roomsusers = rooms.reduce((roomusers, room) =>{
-						return roomusers.concat(room.users);
-					}, []);
-					noticeRoomAdd({newRoom, nid, isVip, roomsuserIds: roomsusers.map(u => u.uid), gusers});
-				}).catch(err =>{
-					console.error(`游戏${nid}中加入房间${newRoom.roomCode}失败`, err);
-					return reject(`游戏${nid}中加入房间${newRoom.roomCode}失败`);
-				});
-				return resolve(newRoom);
-			});
-		}
-	});
-};
-
-/**
- * created by CL
- * created for <enterGame>
- * 当有新的房间生成的时候通知在机器列表中的玩家增加房间
- */
-function noticeRoomAdd({newRoom, nid, isVip, roomsuserIds, gusers}){
-	//在游戏中而不在房间中的玩家即为房间列表中的玩家
-	const msgusers = gusers.filter(user => !roomsuserIds.includes(user.id));
-
-	MessageService.pushMessageByUids('addRoom', {
-		newRoom,
-		gameId: nid,
-		vipScene: isVip,
-	}, msgusers);
-};
-
-/**
- * created by CL
  * 进入指定的游戏
  * @return {rooms} 房间列表
  * @route hall.mainHandler.enterGame
@@ -179,23 +118,13 @@ mainHandler.prototype.enterGame = ({nid}, session, next) =>{
 					//判断是否存在关闭的房间(优先增加已存在但已经关闭的房间)
 					const closeRooms = rooms.filter(room =>!room.open).sort((r1, r2) => r2.jackpot - r1.jackpot);
 					let newRoom;
-					//新加房间的奖池显示
-					const newRoomJackpot = (newRoom, upsert) =>{  (upsert为true代表重新生成的房间)
-						newRoom.jackpotShow.otime = Date.now();
-						newRoom.jackpotShow.ctime = Date.now();
-						newRoom.jackpotShow.show = upsert ? util.random(500000, 1000000) : newRoom.jackpot;
-						newRoom.jackpotShow.rand = (0 <= newRoom.jackpot && newRoom.jackpot < 2000000)
-							? newRoom.jackpot * 0.001 : util.random(200, 500);
-					};
 					if(closeRooms[0]){     //开启已关闭的奖池最多的房间
 						closeRooms[0].open = true;
-						newRoom = closeRooms[0];
-						newRoomJackpot(newRoom);
+						newRoom = gutils.newRoomJackpot(closeRooms[0]);
 						return cb(null, game, rooms.concat(newRoom));
 					}else{  //创建新的游戏房间
-						insRoom({isVip, viper, nid}, game.users).then(insRoom =>{
-							newRoom = insRoom;
-							newRoomJackpot(newRoom, true);
+						gutils.insRoom({isVip, viper, nid}, game.users).then(insRoom =>{
+							newRoom = gutils.newRoomJackpot(insRoom, true);
 							return cb(null, game, rooms.concat(newRoom));
 						});
 					}

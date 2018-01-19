@@ -18,6 +18,10 @@
       [
           {"id": "hall-server-1", "host": "127.0.0.1", "port": 3350}
       ],
+      "slots777":
+      [
+          {"id": "slots777-server-1", "host": "127.0.0.1", "port": 3351}
+      ],
       "games": 
       [
           {"id": "games-server-1", "host": "127.0.0.1", "port": 3450}
@@ -45,7 +49,11 @@
       [
           {"id": "hall-server-1", "host": "127.0.0.1", "port": 3350}
       ],
-    "games": 
+      "slots777":
+      [
+          {"id": "slots777-server-1", "host": "127.0.0.1", "port": 3351}
+      ],
+      "games":
       [
           {"id": "games-server-1", "host": "127.0.0.1", "port": 3450}
       ],

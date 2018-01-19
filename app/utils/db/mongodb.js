@@ -94,7 +94,7 @@ exports.getDao = function(table_name) {
   }
   let model = mongoModel[table_name];
   if (!model){
-    model = require('./collections/'+table_name+'.js').model;
+    model = require('./collections/' + table_name+'.js').model;
     mongoModel[table_name] = model;
   }
   return model;

@@ -68,6 +68,15 @@ app.configure('production|development', 'hall', function() {
 	})
 });
 
+// slots777服务器
+app.configure('production|development', 'slots777', function() {
+	app.event.on(pomelo.events.START_ALL, function() {
+		// const memory = require('./app/domain/games/hotpot/memory');
+		// require('./app/domain/games/hotpot/robot/RobotMgr')({app, memory});
+		console.log('777服务器启动成功');
+	})
+});
+
 // 游戏服务器
 // app.configure('production|development', 'games', function() {
 // 	app.event.on(pomelo.events.START_ALL, function() {
@@ -76,22 +85,13 @@ app.configure('production|development', 'hall', function() {
 //   })
 // });
 
-// 火锅服务器
-app.configure('production|development', 'huoguo', function() {
-  app.event.on(pomelo.events.START_ALL, function() {
-    // const memory = require('./app/domain/games/hotpot/memory');
-    // require('./app/domain/games/hotpot/robot/RobotMgr')({app, memory});
-    console.log('火锅服务器启动成功');
-  })
-});
-
 // 埃及服务器
-app.configure('production|development', 'pharaoh', function() {
-  app.event.on(pomelo.events.START_ALL, function() {
-    //init.egypt(app);
-    console.log('埃及服务器启动成功');
-  })
-});
+// app.configure('production|development', 'pharaoh', function() {
+//   app.event.on(pomelo.events.START_ALL, function() {
+//     //init.egypt(app);
+//     console.log('埃及服务器启动成功');
+//   })
+// });
 
 // 定时器服务器  -（用来处理一些密集型的定时器任务）
 app.configure('production|development', 'scheduleJobs', function() {
@@ -100,7 +100,6 @@ app.configure('production|development', 'scheduleJobs', function() {
     console.log('定时器任务服务器启动成功');
   })
 });
-
 
 app.configure('production|development', 'gate|hall|connector', function() {
   switch (app.serverType) {

@@ -1,11 +1,13 @@
 'use strict';
 
-const sessionIds = {} ; //验证码的标识
+const sessionIds = {} ; //验证码的标识 (uid做键)
+const phoneSessionIds = {};    // (电话号码做键)
 const utils = require('../../../utils');
 const dispatcher = require('../../../utils/dispatcher');
 const TokenService = require('../../../services/TokenService');
 const RongcloudSmsService = require('../../../services/RongcloudSmsService');
 const db = require('../../../utils/db/mongodb');
+const MailServices = require('../../../services/MailServices');
 
 module.exports = function(app) {
 	return new Handler(app);
@@ -16,7 +18,7 @@ var Handler = function(app) {
 };
 
 // 登陆 account_uid
-const _login = function(id, uid, cellPhone, next) {
+const _login = function({id, uid, cellPhone}, next) {
 	// 分发服务器地址
 	let server = dispatcher.dispatch(uid);
 	if (!server) {
@@ -37,7 +39,7 @@ const _login = function(id, uid, cellPhone, next) {
 };
 
 // 创建用户
-function newUser(next, id) {
+function newUser(next, {id, cellPhone, passWord, userName, userWord, email}) {
 	const dao = db.getDao('user_info');
 	// 在数据库创建
 	const create = function(uid) {
@@ -45,8 +47,8 @@ function newUser(next, id) {
 			if(err){
 				return next(null, err);
 			}
-			_login(id, uid, null, next);
-		}, {uid, guestid: id, gold: {'1': 2000}, nickname: '游客' + uid, headurl: utils.getHead()});
+			_login({id, uid}, next);
+		}, {uid, guestid: id, cellPhone, passWord, userName, userWord, email});
 	};
 	// 生成uid
 	const generateUID = function() {
@@ -69,8 +71,188 @@ function newUser(next, id) {
  * 游客登陆
  * @route: gate.mainHandler.guest
  */
-Handler.prototype.guest = function(msg, session, next) {
-	newUser(next, utils.id());
+Handler.prototype.guest = function({}, session, next) {
+	newUser(next, {id: utils.id()});
+};
+
+/**
+ * 手机注册获取验证码
+ * @route: gate.mainHandler.getzhuCeCellCode
+ */
+Handler.prototype.getzhuCeCellCode = function ({cellPhone}, session, next) {
+
+	const dao = db.getDao('user_info');
+	dao.load_one(function(err, user){
+		if(err){
+			return next(null, err);
+		}
+		if(user){
+			return next(null, {code:500, error: '该手机号已经被注册'});
+		}
+		RongcloudSmsService.getAuthcode(cellPhone, function(err, data){
+			phoneSessionIds[cellPhone] = data.sessionId;
+			return next(null, {code: 200});
+		});
+	}, {cellPhone});
+};
+
+/**
+ * 手机注册
+ * @route: gate.mainHandler.cellPhoneGuest
+ */
+Handler.prototype.cellPhoneGuest = function({code, cellPhone, passWord}, session, next) {
+
+	RongcloudSmsService.auth(phoneSessionIds[cellPhone], code, function(err, data){
+		if(data.success === true){
+			newUser(next, {id: utils.id(), cellPhone, passWord});
+		}else{
+			return next(null, {code: 500, error:'验证失败'});
+		}
+	});
+};
+
+/**
+ * 手机注册找回密码获取验证码
+ * @route: gate.mainHandler.getCellCode
+ */
+Handler.prototype.getCellCode = function ({cellPhone}, session, next) {
+
+	const dao = db.getDao('user_info');
+	
+	dao.load_one(function(err, user){
+		if(err){
+			return next(null, {code: 500, error: '查找该号码所属玩家失败'});
+		}
+		if(!user){
+			return next(null, {code: 500, error: '未找到该号码所属玩家'});
+		}
+		RongcloudSmsService.getAuthcode(cellPhone, function(err, data){
+			phoneSessionIds[cellPhone] = data.sessionId;
+			return next(null, {code: 200});
+		});
+	}, {cellPhone});
+};
+
+/**
+ * 手机注册  找回密码
+ * @route: gate.mainHandler.getBackPassWord
+ */
+Handler.prototype.getBackPassWord = function ({code, cellPhone, passWord}, session, next) {
+	
+	const dao = db.getDao('user_info');
+
+	RongcloudSmsService.auth(phoneSessionIds[cellPhone], code, function(err, data){
+		if(data.success ===true){
+			
+			dao.find_one_and_update(function(err, user){
+				if(err){
+					return next(null, {code: 500, error: '验证失败'});
+				}
+				return next(null, {code: 200, id: user.guestid});
+			}, {
+				conds: {cellPhone},
+				$set: {passWord},
+				config: {new: true},
+			});
+		}else{
+			return next(null, {code: 500, error: '验证失败'});
+		}
+	});
+};
+
+/**
+ * 帐号注册
+ * @route: gate.mainHandler.zhanghaoGuest
+ */
+Handler.prototype.zhanghaoGuest = function ({userName, userWord, email}, session, next) {
+
+	if(!userName || !userWord ){
+		return next(null, {code: 500, error:'请输入帐号密码'});
+	}
+	if(!email){
+		return next(null, {code: 500, error:'请输入邮箱以便更好地找回您的密码'});
+	}
+	const userModel = db.getDao('user_info');
+	userModel.load_one(function(err, user){
+		if(err){
+			return next(null, err);
+		}
+		if(!user){
+			userModel.load_one(function(err, userInfo) {
+				if (err) {
+					return next(null, err);
+				}
+				if(userInfo){
+					return next(null, {code: 500, error: '该帐号已经被注册'});
+				}else{
+					newUser(next, {id: utils.id(), userName, userWord, email});
+				}
+			}, {userName});
+		}else{
+			return next(null, {code: 500, error: '该邮箱已经被注册'});
+		}
+	}, {email});
+};
+
+/**
+ * 邮箱验证
+ * @param {cellPhone, passWord}
+ * @route gate.mainHandler.postMailCode
+ */
+Handler.prototype.postMailCode = function({email}, session, next) {
+	
+	const userModel = db.getDao('user_info');
+	
+	userModel.load_one(function(err, user){
+		if(err){
+			return next(null, err);
+		}
+		if(!user){
+			return next(null, {code: 500, error:'该邮箱没有绑定账号'});
+		}
+		const emailCode = utils.random(4);
+		emailCodes[email] = {emailCode};
+		
+		const subject ='找回密码';
+		const html = '<h2>尊敬的玩家，您在欢乐娱乐城修改密码所需要的验证码为' + emailCode + '</h2>';
+		MailServices.sendMail(email, subject, html);
+		setTimeout(function(){
+			delete emailCodes[email];
+		}, 1000 * 60 * 10);
+		
+		return next(null, {code: 200, emailCode});
+	}, {email});
+};
+
+/**
+ * 帐号找回密码
+ * @route gate.mainHandler.zhanghaoBackWord
+ */
+Handler.prototype.zhanghaoBackWord = function({email, mailCode, newWord}, session, next) {
+	
+	const dao = db.getDao('user_info');
+	if(!emailCodes[email]){
+		return next(null, {code: 500, error: '请验证邮箱验证码'});
+	}
+	let emailCode = emailCodes[email].emailCode;
+	if(emailCode != mailCode){
+		return next(null, {code: 500, error:'邮箱验证码不正确'});
+	}else if(emailCode === mailCode){
+		
+		dao.find_one_and_update(function(err, user){
+			if(err){
+				return next(null, {code: 500, error: '验证失败'});
+			}
+			delete emailCodes[email];
+			return next(null, {code: 200, id: user.guestid});
+		}, {
+			conds: {email},
+			$set: {userWord: newWord},
+			config: {new: true},
+		});
+	}else{
+		return next(null, {code: 500, error: '系统繁忙，请稍后再试'});
+	}
 };
 
 /**
@@ -91,53 +273,13 @@ Handler.prototype.login = function({id}, session, next) {
 	}, {guestid: id});
 };
 
-/*
-*  获取验证码
-**/
-Handler.prototype.getCellCode = function (msg, session, next) {
-	let cellPhone = msg.cellPhone;
-	const dao = db.getDao('user_info');
-	dao.load_one(function(err, user){
-		if(err){
-			return next(null, err);
-		}
-		RongcloudSmsService.getAuthcode(cellPhone, function(err, data){
-			sessionIds[session.uid] = data.sessionId;
-			return next(null, {code: 200});
-		});
-	}, {cellPhone});
-};
-
-/*
-*  找回密码
-**/
-Handler.prototype.getBackPassWord = function ({cellPhone, code}, session, next) {
-	const dao = db.getDao('user_info');
-	RongcloudSmsService.auth(sessionIds[session.uid], code, function(err, data){
-		if(data.success ===true){
-			dao.find_one_and_update(function(err, user){
-				if(err){
-					return next(null, err);
-				}
-				return next(null, {code: 200, id: user.id});
-			}, {
-				conds: {cellPhone},
-				$set: {passWord},
-				config: {new: true},
-			});
-		}else{
-			return next(null, {code: 500, error:'验证失败'})
-		}
-	});
-};
-
 /**
- * 用户切换帐号
+ * 用户切换帐号  对应两种登录方式  ☹*✧⁺˚⁺ପ(๑･ω･)੭ु⁾⁾ 好好学习天天向上
  * @param {cellPhone, passWord}
  * @route gate.mainHandler.changeLogin
  */
 Handler.prototype.changeLogin = function({cellPhone, passWord}, session, next) {
-	const uid = session.uid;
+
 	if (!cellPhone) {
 		return next(null, {code: 500, error: '请输入账号'});
 	}
@@ -150,31 +292,24 @@ Handler.prototype.changeLogin = function({cellPhone, passWord}, session, next) {
 			return next(null, err);
 		}
 		if(!user){
-			return next(null, {code: 500, error: '帐号不存在'});
-		}
-		if (uid != null && user.uid === uid) {
-			return next(null, {code: 500, error: '已是当前账号'});
-		}
-		if (user.passWord != passWord) {
-			return next(null, {code: 500, error: '密码错误'});
-		}
-
-		const playerModel = db.getDao('player_info');
-		playerModel.findOne({
-			uid: user.uid
-		}, function(err, player) {
-			if (err) {
-				return next(null, {
-					code: 500,
-					error: '查找玩家失败'
-				});
+			//判断是不是邮箱账号登录
+			dao.load_one(function(err, uInfo){
+				if(err) {
+					return next(null, {code: 500, error: '查找用户失败'});
+				}
+				if(!uInfo){
+					return next(null, {code: 500, error: '帐号不存在'});
+				}
+				if(uInfo.userWord != passWord) {
+					return next(null, {code: 500, error: '密码错误'});
+				}
+				return next(null, {code: 200, id: uInfo.guestid});
+			}, {userName: cellPhone});
+		}else{
+			if(user.passWord != passWord) {
+				return next(null, {code: 500, error: '密码错误'});
 			}
-			if (!player) {
-				return next(null, {code: 500, error: '未找到玩家'});
-			}
-			return next(null, {code: 200, id: user.id, nickname: player.nickname
-			});
-		});
-
+			return next(null, {code: 200, id: user.guestid});
+		}
 	}, {cellPhone});
 };
