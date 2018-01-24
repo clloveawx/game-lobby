@@ -17,6 +17,7 @@ const tables = new Set([
   'platform_games',   //vip平台所有的游戏
   'platform_rooms',   //vip平台所有的房间
 
+  
 	'change_integral',  //玩家积分增减记录
 	'purchase_record',  //vip游戏购买记录
   'vip_apply',        //vip申请
@@ -31,8 +32,11 @@ const tables = new Set([
   'card_record',      //充值卡记录
   'invite_code_info', //邀请码记录
   'pay_info',         //充值记录
-
-
+	'slots_record',     //slots游戏内存记录
+  'social_record',    //社交比赛记录
+	
+	'update_announcement', //公告
+  
   'promoter_info',
   'player_login_record',
   'pay_image',
@@ -53,7 +57,7 @@ const tables = new Set([
     'ranking_record',
     'starting_gold',     //启动金活动
     'indiana_record',    //夺宝游戏内存记录
-    'slots_record',      //slots游戏内存记录
+    
     'ATT_data',
 ]);
 // 模型

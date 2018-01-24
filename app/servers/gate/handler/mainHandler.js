@@ -1,6 +1,5 @@
 'use strict';
 
-const sessionIds = {} ; //验证码的标识 (uid做键)
 const phoneSessionIds = {};    // (电话号码做键)
 const utils = require('../../../utils');
 const dispatcher = require('../../../utils/dispatcher');
@@ -90,6 +89,7 @@ Handler.prototype.getzhuCeCellCode = function ({cellPhone}, session, next) {
 			return next(null, {code:500, error: '该手机号已经被注册'});
 		}
 		RongcloudSmsService.getAuthcode(cellPhone, function(err, data){
+			console.error('获取到的验证码是:', data.sessionId);
 			phoneSessionIds[cellPhone] = data.sessionId;
 			return next(null, {code: 200});
 		});
@@ -268,7 +268,7 @@ Handler.prototype.login = function({id}, session, next) {
 		if(!user){
 			newUser(next, id);
 		}else{
-			_login(user.guestid, user.uid, user.cellPhone, next);
+			_login({id: user.guestid, uid: user.uid, cellPhone: user.cellPhone}, next);
 		}
 	}, {guestid: id});
 };

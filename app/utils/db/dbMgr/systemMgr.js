@@ -207,15 +207,16 @@ module.exports = {
 		if(!roomInfo){
 			return Promise.reject({code: 500, error: '请传入修改后的房间信息'});
 		}
-
+		//同时更新房间的出分率
+		if(roomInfo.consumeTotal != 0){
+			roomInfo.outRate = Number((roomInfo.winTotal / roomInfo.consumeTotal).toFixed(2));
+		}
 		const udtRoom = () =>{
 			return redisClient.set(`rooms:${nid}:${roomCode}`, JSON.stringify(roomInfo)).then(() =>{
 				//缓存更新后需要新建同步任务 如果任务已存在 无需创建
 				syncMgr.taskExistsGameRoom(nid, roomCode).then(exists =>{
-					console.log('================是否可以增加更新房间的任务',exists)
 					if(!exists){
 						syncMgr.addSystemGameRoomTask(nid, roomCode).then(() =>{
-							console.log('================增加更新房间的任务成功',{nid, roomCode})
 							Pomelo.app.get('sync').exec('infoSync.updateSystemRoom', {nid, roomCode});
 						});
 					}

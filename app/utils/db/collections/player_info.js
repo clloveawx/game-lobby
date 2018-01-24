@@ -37,8 +37,8 @@ const PlayerInfoSchema = new Schema({
 	vdot: Number,                                //v点
 	gamesRecord: Mixed,                          //游戏记录  可查看是否是新人
 	alipay: String,                              //支付宝
-	inviteCodeBindTime: Number,
-	isRobot: Number,                             //是否是机器人
+	inviteCodeBindTime: Number,                  //创建vip平台的时间
+	isRobot: Number,                             //0为真实玩家 1 为测试玩家 2 为机器人
 	viperId: String,                             //所在平台房主uid
 	needPlatform: Boolean,                       //vip玩家是否需要新建平台
 
@@ -74,7 +74,7 @@ function insertPlayer({player, codeInfo, _uid}, callback){
 			return callback({code: 500, error: '新建玩家失败'+uid});
 		}
 		// 如果邀请码信息存在
-		if(codeInfo && player.uid !== codeInfo.uid){    //扫码进入的玩家不是邀请码所有者
+		if(codeInfo && player.uid !== codeInfo.uid){    //扫码进入的玩家,并且不是邀请码所有者
 			codeInfo.inviteRecords.push(player.uid);
 			inviteCodeModel.update_one(function(){}, {
 				conds: {inviteCode: codeInfo.inviteCode},
@@ -92,7 +92,7 @@ PlayerInfoSchema.statics.add = function(callback, {uid, isRobot, inviteCode, gam
 	}
 	const _this = this;
 	const playerMgr = require('../dbMgr/playerMgr');
-	const player = playerMgr.newPlayer({uid, vip: false, isRobot});
+	const player = playerMgr.newPlayer({uid, vip: false, isRobot, nickname: `游客` + uid, gold: {1: 2000}, headurl: utils.getHead()});
 	if(!inviteCode){     //没有邀请码,直接创建玩家
 		insertPlayer.call(this, {player, _uid}, callback);
 	}else {    //相当于扫码进入
@@ -163,6 +163,17 @@ PlayerInfoSchema.statics.load_by_uid = function(callback, {uid}) {
 	});
 };
 
+//根据条件查找一条
+PlayerInfoSchema.statics.load_one = function(callback, params) {
+
+	this.findOne(params, function(err, player){
+		if(err){
+			return callback({code: 500, error: "查找玩家失败"+err});
+		}
+		return callback(null, player);
+	});
+};
+
 //按照指定条件进行查找
 PlayerInfoSchema.statics.load = function(callback, params, select = {}) {
 
@@ -191,6 +202,5 @@ PlayerInfoSchema.statics.find_one_and_update = function(callback, params){
 		return callback(null, user);
 	});
 };
-
 
 exports.model = mongoose.model('player_info', PlayerInfoSchema, 'player_info');

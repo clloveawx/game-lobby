@@ -1,25 +1,20 @@
 'use strict';
-let  sessionId ; //验证码的标识
 
 const TokenService = require('../../../services/TokenService');
 const sessionService = require('../../../services/sessionService');
-const isOnline = require('../../../http/isOnline');
-const RongcloudSmsService = require('../../../services/RongcloudSmsService');
+const mailService = require('../../../services/MailService');
 
 const playerMgr = require('../../../utils/db/dbMgr/playerMgr');
 const platformMgr = require('../../../utils/db/dbMgr/platformMgr');
 const systemMgr = require('../../../utils/db/dbMgr/systemMgr');
 const userMgr = require('../../../utils/db/dbMgr/userMgr');
-const usefulInfoMgr = require('../../../utils/db/dbMgr/usefulInfoMgr');
+const censusMgr = require('../../../utils/db/dbMgr/censusMgr');
 const async = require('async');
 const utils = require('../../../utils');
 const mongoDB = require('../../../utils/db/mongodb');
 const JsonMgr = require('../../../../config/data/JsonMgr');
 
-const Promise = require('bluebird');
-const gamesWeightSort = require('../../../domain/games/util').gamesWeightSort;
-
-const list = [];
+const gutils = require('../../../domain/games/util');
 
 module.exports = function(app) {
   return new Handler(app);
@@ -38,11 +33,6 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 
 	const _this = this;
 
-	if(list.indexOf(uid) !== -1){
-		return next(null, {code: 500, error: '玩家已经进入游戏平台'});
-	}
-	list.push(uid);
-
 	async.waterfall([
 		cb => auth(token, cb),          // 验证token
 		cb => this.app.get('sessionService').kick(uid, cb),   // 先踢掉
@@ -50,25 +40,25 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 		cb => {
 			// 监听离线
 			session.on('closed', userLeave.bind(null, this.app));
-
-			const playerModel = mongoDB.getDao('player_info');
-			playerModel.load_by_uid(function(err, player){
-				if(err){
-					cb(err);
+			
+			//在redis和数据库中查找玩家
+			playerMgr.getPlayer({uid}, function(err, player) {
+				if (err) {
+					return cb(`从redis查找玩家${uid}失败`, err);
 				}
-				if(!player){
+				if (!player) {    //创建新账号
+					const playerModel = mongoDB.getDao('player_info');
 					const gameVersion = JsonMgr.get('gameBeat').getById(1).gameVersion;
-					console.log('没有玩家新建==============================');
-					mongoDB.getDao('user_info').load_by_uid(function(err, user){
-						if(err){
+					mongoDB.getDao('user_info').load_by_uid(function(err, user) {
+						if (err) {
 							console.error('查找user失败', err);
 						}
 						playerModel.add(cb, {uid, isRobot, inviteCode, gameVersion, _uid: user._id});
 					}, {uid});
-				}else{
-					cb(null, playerMgr.newPlayer(player));
+				} else {
+					return cb(null, playerMgr.newPlayer(player));
 				}
-			}, {uid});
+			});
 		},
 		(player, cb) =>{
 			if(!player) {
@@ -138,19 +128,10 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 						// if(platform.vipModel == null){
 						// 	result.modeDeclaration = true;
 						// }
-						const nowTime = Date.now();
-						games = games.map(g =>{
-							return {
-								nid: g.nid,
-								roomUserLimit: g.roomUserLimit,
-								topicon: g.topicon,
-								name: g.name,
-								time: g.gameStartTime + g.gameHaveTime - nowTime,
-							}
-						});
+						games = gutils.gameFieldsReturn(games, true);
 
 						//平台游戏显示
-						pGameNeedBuy(games).then(gs =>{
+						gutils.pGameNeedBuy(games).then(gs =>{
 
 							result.games = gs;
 							result.model = platform.vipModel;
@@ -162,7 +143,6 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 							}).catch(err =>{
 								console.error('进入游戏 修改平台数据失败');
 							});
-
 						}).catch(err =>{
 							return next(null, err);
 						});
@@ -186,8 +166,8 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 					// 玩家会进入到该平台
 					newPlatform.envMembers.push({uid: player.uid, sid: player.sid});
 
-					//现在改平台下还没有任何已购买的游戏
-					pGameNeedBuy([]).then(gs =>{
+					//现在该平台下还没有任何已购买的游戏
+					gutils.pGameNeedBuy([]).then(gs =>{
 
 						//result.modeDeclaration = true;
 						result.games = gs;
@@ -222,7 +202,7 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 						}
 						result.viper = player.viperId;
 						// 玩家会进入到该平台
-						platform.envMembers.push(player.uid);
+						platform.envMembers.push({uid: player.uid, sid: player.sid});
 						result.model = platform.vipModel;
 						// 获取 vip平台游戏列表
 						platformMgr.getPlatformGames({viper: player.viperId}, function(err, games) {
@@ -243,18 +223,10 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 					//普通玩家
 					result.VIP_ENV = false;
 					//获取所有系统游戏
-					systemMgr.allGames().then(games =>{
-						result.games = games;
-					}).catch(err =>{
-						console.error('获取所有系统游戏失败' + err);
-						return next(null, {code: 500, error: '获取所有系统游戏失败'});
-					});
-
-
 					systemMgr.allGames().then(function(allGames){
 						result.games = allGames;
 						// 玩家进入到普通环境
-						usefulInfoMgr.addPlayerIntoSystem(player.uid).then(() =>{
+						censusMgr.addPlayerIntoSystem(player.uid).then(() =>{
 							return cb(null, player, result)
 						}).catch(err =>{
 							console.error(`玩家${player.uid}加入系统游戏环境失败` + err);
@@ -266,12 +238,14 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 				}
 			}
 		},
-		(player, result, cb) =>{     //处理版本问题
+		
+		//处理版本问题
+		(player, result, cb) =>{
 			//成功进入一次 加一个
 			//require('../../../domain/hall/player/census').loginTotal.add(uid);
 
 			//增加登录记录
-			userLoginRecord(player.uid);
+			userLoginRecord({uid}, player);
 
 			//记录玩家登录时间
 			player.loginTime = Date.now();
@@ -279,7 +253,7 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 			let payConfig = JsonMgr.get('payConfig');
 			let goldTable = JsonMgr.get('gold');
 			result.bindPhone = goldTable.getById(200).num;
-			let payType={};
+			let payType = {};
 			payConfig.datas.forEach(m=>{
 				payType[m.name] = m.url;
 			});
@@ -300,6 +274,7 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 			let allgames = JsonMgr.get('games');
 			let list = [], activation;
 			let gameVersion = JsonMgr.get('gameBeat').getById(1).gameVersion;
+			
 			if(gameVersion == 1){    //网吧版
 				async.waterfall([
 					callback => {
@@ -319,53 +294,11 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 						});
 					},
 					(callback) =>{
-						if(player.inviteCode){
-							inviteCodeModel.load_one(function(err, codeInfo){
-								if(err){
-									return next(null, err);
-								}
-								inviteCodeModel.load_one(function(err, viperCodeInfo){
-									if(err){
-										return next(null, err);
-									}
-									if(viperCodeInfo.games.length > 0){
-										result.games.forEach(m =>{
-											const temp = viperCodeInfo.games.find(x => x.nid === m.nid);
-											if(temp && temp.status === true){
-												list.push(m);
-											}
-										});
-									}else{
-										//这个是渠道下面的玩家,然后该渠道没有设置哪些游戏是否开放
-										list = result.games;
-									}
-									return callback();
-								}, {
-									uid: codeInfo.viper,
-								});
-							}, {
-								inviteCode: player.inviteCode,
-							});
-						}else{ //这个是渠道本身没有邀请码进行查询自己开放了哪些有些
-							inviteCodeModel.load_one(function(err, codeInfo){
-								if(err){
-									return next(null, err);
-								}
-								if(codeInfo && codeInfo.games.length > 0){
-									result.games.forEach(m=>{
-										const temp = codeInfo.games.find(x => x.nid === m.nid);
-										if(temp && temp.status === true){
-											list.push(m);
-										}
-									});
-								}else{ //这个是渠道本身进入的接口然后没有设置哪些游戏开放
-									list = result.games;
-								}
-								return callback();
-							}, {
-								uid
-							});
-						}
+						//渠道游戏开关控制显示的游戏列表
+						gutils.channelGameSwich({player, games: result.games, gameVersion}).then(games =>{
+							list = games;
+							return callback();
+						})
 					},
 					(callback) =>{
 						//处理启动金
@@ -408,18 +341,11 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 						result.user = player.strip();
 						result.games = list;
 						result.payConfig = payType;
-
-						//获取user_info
-						userMgr.getUser({uid: player.uid}, function(err, user){
-							if(err){
-								console.error('进入游戏大厅获取user-info失败', err);
-							}
-							cb(null, result, user);
-						});
+						
+						return cb(null, result);
 					});
 				});
 			}else {                  //vip 版本
-				console.log('33333333333333333333333333333333333333');
 				closeGame.find({}, function(err, arr){
 					if(err){
 						console.error('查找关闭游戏失败');
@@ -440,30 +366,34 @@ Handler.prototype.entry = function({uid, token, inviteCode, isRobot = 0}, sessio
 
 						result.user = player.strip();
 						result.payConfig = payType;
-
-						//获取user_info
-						userMgr.getUser({uid: player.uid}, function(err, user){
-							if(err){
-								console.error('进入游戏大厅获取user-info失败', err);
-							}
-							cb(null, result, user);
-						});
+						
+						return cb(null, result);
 					});
 				});
 			}
-		}
-	], (err, {user, games, VIP_ENV, viper, payConfig, bindPhone, modeDeclaration, model, gameMembers, lastGame, lastRoom,closeGames, startingGoldActivity,isTodayLogin}, userInfo)=> {
+		},
+	], (err, {user, games, VIP_ENV, viper, payConfig, bindPhone, model, gameMembers, lastGame, lastRoom, closeGames, startingGoldActivity,isTodayLogin})=> {
 		if(err) {
-			list.remove(uid);
 			return next(null, {code: 500, error: '处理玩家进入游戏失败'});
 		}
-		list.remove(uid);
+
 		sessionService.sessionSet(session, {VIP_ENV, viper, model});
-		console.log(userInfo.nickname + '====================进入游戏');
-		next(null, {code: 200, user, games: games.filter(g =>![].includes(g.nid)).map(game => {
-			const {nid, heatDegree, roomUserLimit, topicon, name, needBuy,time} = game;
-			return {nid, heatDegree, roomUserLimit, topicon, name, needBuy,time};
-		}), vipScence:VIP_ENV, payConfig, bindPhone, modeDeclaration, model, gameMembers, lastGame, lastRoom, closeGames, startingGoldActivity,isTodayLogin});
+		console.log(user.nickname + '====================进入游戏');
+		next(null, {
+			code: 200,
+			user,
+			games: gutils.gameFieldsReturn(games),
+			vipScence:VIP_ENV,
+			payConfig,
+			bindPhone,
+			model,
+			gameMembers,
+			lastGame,
+			lastRoom,
+			closeGames,
+			startingGoldActivity,
+			isTodayLogin
+		});
 	});
 };
 
@@ -479,48 +409,49 @@ const auth = function (token, cb) {
 	cb(null);
 };
 
-//平台游戏显示 未购买的游戏
-const pGameNeedBuy = (pGames) =>{
-	//获取平台显示的需要购买的游戏列表
-	return systemMgr.allGames().then(function(allGames){
-		console.log('查看所有系统游戏的显示格式================',allGames);
-		//未购买的游戏列表
-		const addGames = allGames.filter(game => !pGames.map(g => g.nid).includes(game.nid));
-		addGames.forEach(g =>{
-			g.needBuy = true;
-		});
-		return Promise.resolve(gamesWeightSort(pGames).concat(addGames));
-	}).catch(err =>{
-		return Promise.reject({code:500, error: '获取所有的系统游戏失败' + err});
-	});
-};
-
 //玩家登录记录
-const userLoginRecord = (uid) =>{
+const userLoginRecord = ({uid, params}, playerInfo) =>{
 	const playerLoginRecord = mongoDB.getDao('player_login_record');
 	const [starTime, endTime] = [utils.zerotime(), utils.zerotime() + 24*60*60*1000];
-
-	playerMgr.getPlayerTotalInfo(uid).then(({player, user}) =>{
+	
+	const addRecord = ({nickname, gold, integral, addRmb}) =>{
 		playerLoginRecord.add(function(err){
 			if(err){
 				console.error('增加登录记录失败' + err);
 			}
 		}, {
 			conds: {uid, loginTime: {'$gt': starTime, '$lt': endTime}},
-			$set: {
-				nickname: user.nickname,
+			$set: (params && params.$set) || {
+				nickname,
 				loginTime: Date.now(),
-				gold: user.gold,
-				integral: player.integral,
-				addRmb: player.addRmb,
+				gold,
+				integral,
+				addRmb,
 			},
 			config: {
 				upsert: true
 			}
 		});
-	}).catch(err =>{
-		console.error('玩家登录记录失败', err);
-	});
+	};
+	
+	if(!playerInfo){
+		playerMgr.getPlayer({uid}, function(err, player){
+			if(err){
+				console.log(`查找玩家${uid}失败 userLoginRecord`, err);
+			}
+			if(!player){
+				console.log(`未找到玩家${uid} userLoginRecord`);
+			}
+			addRecord({nickname: player.nickname, gold: player.gold, integral: player.integral, addRmb: player.addRmb});
+		})
+	}else{
+		addRecord({
+			nickname: playerInfo.nickname,
+			gold: playerInfo.gold,
+			integral: playerInfo.integral,
+			addRmb: playerInfo.addRmb,
+		});
+	}
 };
 
 // 退出
@@ -528,91 +459,256 @@ function userLeave(app, session){
 	if(!session || !session.uid) {
 		return;
 	}
-	const isUserExist = list.indexOf(session.uid) !== -1;
-
-	const uid = session.uid;
-    const nid = session.get('game');
-    const roomCode = session.get('roomCode');
-    const isVip = session.get('VIP_ENV');
+	// /const isUserExist = list.indexOf(session.uid) !== -1;
+	
+	const {uid, isVip, nid, roomCode, viper} = gutils.sessionInfo(session);
+	
 	//先做离开房间和游戏的处理
-	app.rpc.hall.gameRemote.offlineLeave(session, {uid,nid,roomCode,isVip, viper: session.get('viper')}, (err)=>{
+	offlineLeave({uid, nid, roomCode, isVip, viper}, function(err){
 		if(err){
-			console.error(err);
+			console.error('处理掉线离开出错:', err);
 		}
 		sessionService.sessionSet(session, {game: null, roomCode: null, VIP_ENV: null});
-		if(isUserExist){
-			return;
-		}
-		app.rpc.hall.playerRemote.leave(session, {uid: session.uid, nid}, (user) => {
-			session.unbind(uid, function(){
-				const isplayer = isOnline.getLeave();
-				if(isplayer) {
-					isOnline.removeLeave(uid);
-					isplayer.cb()
-				};
-				console.log(user.nickname, '离开游戏');
-			})
+		
+		leave({uid}, function(){
+			session.unbind(uid, function(){});
 		});
-	})
+	});
 }
 
 /**
- * 用户切换帐号
- * @param {cellPhone, passWord}
- * @route connector.entryHandler.isCanChange
+ * 掉线离开
  */
-Handler.prototype.isCanChange = function ({cellPhone, passWord}, session, next){
-	let uid = session.uid;
-	if(!cellPhone){
-		return next(null, {code: 500, error:'请输入账号'});
-	}
-	if(!passWord){
-		return next(null, {code: 500, error:'请输入密码'});
-	}
-	const app = this.app;
-	this.app.rpc.hall.playerRemote.changeAccount(session, {uid, passWord, cellPhone}, (err, isCanChange) =>{
+function offlineLeave({uid, nid, roomCode, isVip, viper}, next){
+	
+	//先找到该玩家
+	playerMgr.getPlayer({uid}, function(err, player) {
 		if(err){
-			return next(null, err)
+			return next(`查找玩家${uid}失败 offlineLeave:`, err);
 		}
-		return next(null, {code: 200, isCanChange});
-	})
-};	
-
-/*
-*  获取验证码
-**/
-Handler.prototype.getCellCode = function (msg, session, next) {
-	let cellPhone = msg.cellPhone;
-	const dao = db.getDao('user_info');
-	dao.findOne({cellPhone:cellPhone},function(err,data){
-		if(err){
-			return next(null,{code:500,error:'获取验证码失败'});
+		if(!player){
+			return next(`未找到玩家${uid} offlineLeave:`);
+		}
+		// vip环境需要把玩家从环境中离开
+		if(isVip){
+			platformMgr.getPlatform({viper}, function(err, platform){
+				platform.removeEnvMember(uid);
+				// 说明玩家在某个游戏中
+				if(nid && !player.vip){
+					platform.removeGameMember(nid, uid);
+				}
+				platform.udtPlatformToRedis();
+			});
 		}else{
-			RongcloudSmsService.getAuthcode(cellPhone,function(err,data){
-				sessionId = data.sessionId;
-				return next(null, {code: 200});
+			censusMgr.deleteplayerIntoSystem(uid);
+		}
+		
+		if(nid == null){
+			return next(null);
+		}else{
+			
+			gutils.getGameByEnv({viper, nid}).then(game =>{
+				
+				//玩家从游戏中离开
+				const userGameIndex = game.users.findIndex(user => user.uid == uid);
+				if(userGameIndex != -1){
+					game.users.splice(userGameIndex, 1);
+					gutils.udtGameByEnv(game);
+				}
+				
+				//判断玩家是否进入房间
+				if(roomCode == null){
+					return next(null);
+				}else{
+					player.leaveRoomTime = Date.now();
+					
+					//生成积分记录
+					const addRecord = function () {
+						const integralModel = require('../../../utils/db/mongodb').getDao('integral_record');
+						integralModel.create({
+							viperUid: viper,
+							uid,
+							nickname: player.nickname,
+							duration: player.leaveRoomTime - player.enterRoomTime,
+							createTime: player.leaveRoomTime,
+							integral: player.roomProfit,
+							gname: game.zname,
+							settleStatus: false
+						}, function(err, data){
+							if(err || !data){
+								console.error('生成积分记录失败');
+							}
+							player.roomProfit = 0;
+							playerMgr.updatePlayer(player, function(){});
+						});
+					};
+					
+					//玩家离开房间
+					gutils.getRoomByEnv({viper, nid, roomCode}).then(room =>{
+						const userRoomIndex = room.users.findIndex(user => user.uid == uid);
+						if(userRoomIndex != -1){
+							room.users.splice(userRoomIndex, 1);
+							gutils.udtRoomByEnv(room);
+						}
+					});
+					
+					//做每个游戏玩家离开房间的逻辑处理
+					switch (nid){
+						// case '1': case '2': case '7':
+						// 	this.app.rpc.games.gameRemote.slotsOfflineMail(null, {
+						// 		isVip, uid, roomCode, viper, nid,
+						// 	}, function(err){
+						// 		if(err){
+						// 			return next({error: err});
+						// 		}
+						// 		if(isVip){
+						// 			addRecord();
+						// 		}
+						// 		console.log(`${game.nid} 中掉线离开`);
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '4':
+						// 	this.app.rpc.games.gameRemote.getUserProfit(null, {isVip, uid, roomCode, viper, offLine: true}, function(err, profit){
+						// 		if(err){
+						// 			return next({error: err});
+						// 		}
+						// 		if(isVip){
+						// 			addRecord();
+						// 		}
+						// 		if(profit == null){
+						// 			return next(null);
+						// 		}
+						// 		const moneyType = isVip ? 'integral' : 'gold';
+						// 		user[moneyType] += profit;
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '12':
+						// 	this.app.rpc.pharaoh.mainRemote.getUserProfit(null, {isVip, uid, roomCode, viper, offLine: true}, function(err, profit){
+						// 		if(err){
+						// 			return next({error: err});
+						// 		}
+						// 		if(isVip){
+						// 			addRecord();
+						// 		}
+						// 		if(profit == null){
+						// 			return next(null);
+						// 		}
+						// 		const moneyType = isVip ? 'integral' : 'gold';
+						// 		user[moneyType] += profit;
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '3':
+						// 	this.app.rpc.huoguo.mainRemote.kickUserFromChannel(null, {roomCode, uid, isVip, viper}, function(data){
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '8':
+						// 	this.app.rpc.games.baijiaRemote.leave(null,uid,game.nid,isVip,roomCode,(err)=>{
+						// 		console.log(err);
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '9':
+						// 	this.app.rpc.games.bairenRemote.leave(null, uid, game.nid,isVip,roomCode,(err) => {
+						// 		console.log(err);
+						// 		console.log(`${game.nid} 中掉线离开`);
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '11':
+						// 	this.app.rpc.games.attRemote.leave(null, uid, game.nid,isVip,(err) => {
+						// 		console.log(err);
+						// 		console.log(`${game.nid} 中掉线离开`);
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '15':
+						// 	this.app.rpc.games.bipaiRemote.leave(null,uid,game.nid,isVip,(err)=>{
+						// 		console.log(err);
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '17':
+						// 	this.app.rpc.games.dotRemote.leave(null,uid,game.nid,isVip,(err)=>{
+						// 		console.log(err);
+						// 		return next(null);
+						// 	});
+						// 	break;
+						// case '10':
+						// 	this.app.rpc.games.pirateRemote.leave(null,uid,isVip,(err)=>{
+						// 		if(isVip){
+						// 			addRecord();
+						// 		}
+						// 		console.log(err);
+						// 		return next(null);
+						// 	});
+						// 	break;
+						default:
+							if(isVip){
+								addRecord();
+							}
+							console.log(`${game.name} 中掉线离开`);
+							return next(null);
+					}
+				}
 			});
 		}
 	});
+}
+
+function slotsOfflineMail({isVip, uid, roomCode, viper, nid}){
+	switch(nid){
+		case '1':
+			const slots777Memory = require('../../../domain/games/slots777/memory');
+			envRecord = isVip ? slots777Memory.vipRecord : slots777Memory.record;
+			if(!envRecord[uid]){
+				return next(null);
+			}
+			record = util.last(envRecord[uid].record);
+			if(envRecord[uid] && (Date.now() - envRecord[uid].time) < 1000 * 3){
+				sendMail({name: "slots777", bet: record.bet, win: record.win, isVip}, uid);
+			}
+			return next(null);
+	}
+}
+
+/**
+ * slots游戏掉线邮件
+ */
+const sendMail = (opts, uid, littleGame = false) =>{
+	const moneyType = opts.isVip ? "积分" : "金币";
+	mailService.generatorMail({
+		name: '游戏中断',
+		content: littleGame ? '由于断线/退出游戏, 您在'+opts.name+'中的盈利已自动结算' + '\n赢得'+opts.win+`${moneyType}。`
+			: '由于断线/退出游戏, 您在'+opts.name+'游戏中押注'+opts.bet+ `${moneyType}已自动结算` + '\n赢得'+opts.win+`${moneyType}。`,
+		//attachment: {[opts.isVip ? 'integral' : 'gold']: opts.win},
+	}, uid, function(err, mailDocs){});
 };
 
-/*
-*  找回密码
-**/
-Handler.prototype.getBackPassWord = function (msg, session, next) {
-	const dao = db.getDao('user_info');
-	let code = msg.code;
-	RongcloudSmsService.auth(sessionId,code,function(err,data){
-		if(data.success ===true){
-			dao.findOneAndUpdate({cellPhone: msg.cellPhone}, {$set: {passWord:msg.passWord}},{new:true}, function(err, res) {
-				err && logger.error('保存数据库失败');
-				if(err){
-					return next(null, {code: 500,error:'验证失败'})
-				}		
-				return next(null, {code: 200,id:res.id})
-			});
-		}else{
-			return next(null, {code: 500,error:'验证失败'})
+/**
+ * 用户离线
+ */
+function leave({uid}, cb) {
+	playerMgr.getPlayer({uid}, function(err, player) {
+		if (err) {
+			return next(`查找玩家${uid}失败 leave:`, err);
 		}
+		if (!player) {
+			return next(`未找到玩家${uid} leave:`);
+		}
+		player.lastLogoutTime = Date.now();
+		
+		playerMgr.updatePlayer(player, function(){
+			//离线记录
+			userLoginRecord({uid, $set: {
+				'leaveTime':Date.now(),
+			}}, player);
+			
+			console.log(`${player.nickname} 成功下线`);
+			return cb();
+		});
 	});
-};
+}

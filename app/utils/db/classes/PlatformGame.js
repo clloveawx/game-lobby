@@ -18,6 +18,17 @@ class BaseGame {
 		this.gameHaveTime = opts.gameHaveTime;      //游戏拥有的时间
 		this.onlineAwards = opts.onlineAwards || 0;
 	}
+	
+	addUser ({uid, sid}){
+		this.users.push({uid, sid});
+	}
+	
+	leaveUser(uid){
+		const userIndex = this.users.findIndex(user => user.uid == uid);
+		if(userIndex != -1){
+			this.users.splice(userIndex, 1);
+		}
+	}
 }
 
 module.exports = BaseGame;

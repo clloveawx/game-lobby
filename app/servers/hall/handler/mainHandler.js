@@ -1,7 +1,5 @@
 'use strict';
 
-const RankMgr = require('../../../domain/hall/rankings/RankMgr');
-
 const integralService = require('../../../services/integralService');
 const jsonMgr = require('../../../../config/data/JsonMgr');
 
@@ -89,7 +87,6 @@ mainHandler.prototype.enterGame = ({nid}, session, next) =>{
 						}
 						//游戏机器
 						systemMgr.allGameRooms(nid, true).then(rooms =>{
-							console.log('======================',{game, rooms});
 							return cb(null, game, rooms);
 						}).catch(err =>{
 							console.error(`获取系统游戏${nid}的房间失败`, err);
@@ -141,15 +138,7 @@ mainHandler.prototype.enterGame = ({nid}, session, next) =>{
 					}
 					room.jackpotShow.show = passTime * room.jackpotShow.rand;
 					//保存房间的修改
-					if(isVip){
-						platformMgr.udtPlatformGameRoom(room).then(() =>{}).catch(err =>{
-							console.error('更新平台${viper}游戏${nid}房间${room.roomCode}失败',err);
-						});
-					}else{
-						systemMgr.udtGameRoom(nid, room.roomCode, room).then(() =>{}).catch(err =>{
-							console.error('更新系统游戏${nid}房间${room.roomCode}失败',err);
-						});
-					}
+					gutils.udtRoomByEnv(room);
 				});
 				return cb(null, game, rooms);
 			}
@@ -158,15 +147,8 @@ mainHandler.prototype.enterGame = ({nid}, session, next) =>{
 			//玩家进入游戏
 			game.users.push({uid, sid: player.sid});
 			//保存游戏的修改
-			if(isVip){
-				platformMgr.udtPlatformGame(game).then(() =>{}).catch(err =>{
-					console.error('更新平台${viper}游戏${nid}失败',err);
-				});
-			}else{
-				systemMgr.udtGame(nid, game).then(() =>{}).catch(err =>{
-					console.error('更新系统游戏${nid}失败',err);
-				});
-			}
+			gutils.udtGameByEnv(game);
+
 			//绑定进入的游戏
 			sessionService.sessionSet(session, {'game': nid});
 			//census.gameTotal[nid].add(uid);
@@ -231,17 +213,7 @@ mainHandler.prototype.changeEnv = ({}, session, next) =>{
 							if(err){
 								return next(null, {code: 500, error: `获取平台${player.viperId}游戏列表失败`});
 							}
-							const nowTime = Date.now();
-							pgames = pgames.map(g =>{
-								return {
-									nid: g.nid,
-									heatDegree: g.heatDegree,
-									roomUserLimit: g.roomUserLimit,
-									topicon: g.topicon,
-									name: g.name,
-									time: g.gameStartTime + g.gameHaveTime - nowTime,
-								}
-							});
+							pgames = gutils.gameFieldsReturn(pgames);
 							if(player.vip){   //vip房主可以看到未购买的游戏
 								//平台游戏显示
 								gutils.pGameNeedBuy(pgames).then(gs =>{
@@ -445,12 +417,6 @@ mainHandler.prototype.changeEnvByCode = ({inviteCode}, session, next) =>{
 		});
 	});
 };
-
-
-
-
-
-
 
 /**
  * 积分记录点击

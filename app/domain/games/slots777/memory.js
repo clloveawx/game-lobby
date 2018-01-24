@@ -1,22 +1,15 @@
 'use strict';
 
 module.exports = {
-    record: {
-        //uid: {bet, totalWin, totalBet, record:[], nextUse,}
-    },
-    vipRecord: {
-        //uid: {bet, totalWin, totalBet, record:[], nextUse,}
-    },
-    unlock: {
-        'system': {
-            // uid: Number
-        },
-        /*
-        'viper': {} 
-         */
-    },
-    moneyChange: {
-        totalWin: 0,
-        totalBet: 0,
-    },
+	record: {
+		//uid: {totalWin, totalBet, record:[], nextUse, time, bet}
+	},
+	vipRecord: {
+		//uid: {totalWin, totalBet, record:[], nextUse, time, bet}
+	},
+	//放奖控制
+	awardRegulation: {
+		'system': {},
+		'vip': {},
+	}
 };

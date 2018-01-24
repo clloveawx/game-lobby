@@ -108,39 +108,13 @@ slots777Handler.prototype.start = function ({lineNum, bet}, session, next) {
 				const gameRecord = player.gamesRecord[isVip ? 'platform' : 'system'];
 				if(gameRecord['slots777'] == null){
 					gameRecord['slots777'] = {
-						record: [],
 						winTotal: 0,
 						betTotal: 0,
 						newer: true,
 						number: 0,     //玩家自上次充钱以来所玩的把数
-						maxWin: 0,
-						winNum: 0,
-						profitWinNum: 0,
-						rebate:{
-							'0.15': 0,
-							'0.55': 0,
-							'0.95': 0,
-							'2.1': 0,
-							'4': 0,
-							'7.5': 0,
-							'10': 0,
-						},
 					};
 				}
-				if(gameRecord['slots777'].rebate == null){
-					gameRecord['slots777'].maxWin = 0;
-					gameRecord['slots777'].winNum = 0;
-					gameRecord['slots777'].profitWinNum = 0;
-					gameRecord['slots777'].rebate = {
-						'0.15': 0,
-						'0.55': 0,
-						'0.95': 0,
-						'2.1': 0,
-						'4': 0,
-						'7.5': 0,
-						'10': 0,
-					}
-				}
+	
 				//从内存中读取玩家游戏信息
 				const envRecord = isVip ? memory.vipRecord : memory.record;
 				if(util.isVoid(envRecord[uid])){

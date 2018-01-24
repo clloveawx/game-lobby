@@ -22,7 +22,7 @@ class Rooms {
 		this.disableTime = opts.disableTime || 0;  //停用时间
 
 		this.users = opts.users || [];
-		this.socialRound = null;     //社交比赛回合状态
+		//this.socialRound = opts.socialRound || null;     //社交比赛回合状态
 		this.jackpotShow = opts.jackpotShow || {otime: 0, show: 0, rand: 0, ctime: 0};   //奖池显示配置
 	}
 }

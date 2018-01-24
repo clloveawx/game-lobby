@@ -261,7 +261,16 @@ exports.filter = R.filter;
 
 exports.findLastIndex = R.findLastIndex;
 
-exports.sum = R.sum;
+exports.sum = (values, toInt = false) =>{
+	const type = Object.prototype.toString.call(values);
+	if(type == '[object Array]'){
+		return toInt ? Math.floor(R.sum(values)) : R.sum(values);
+	}else if(type == '[object Object]'){
+		return toInt ? Math.floor(R.sum(R.values(values))) : R.sum(R.values(values));
+	}else if(type == '[object Number]'){
+		return valuers;
+	}
+};
 
 //将多参数的函数，转换成单参数的形式
 exports.curry = R.curry;

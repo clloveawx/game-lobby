@@ -16,7 +16,7 @@ const CustomerInfoSchema = new Schema({
 	vip: String,
 	inviteCode: String,
 	isSolve: Number,     //1为没处理,2为处理中3为已处理
-	createTime: string,
+	createTime: String,
 	type: Number,        // 1: 意见反馈   2: 代理申请
 	name: String,
 	phone: Number,

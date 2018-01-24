@@ -156,16 +156,7 @@ Handler.prototype.buyGame = ({nid, dayNum}, session, next) =>{
 		
 		const nowTime = Date.now();
 		const endTime = Date.now() + pgame.gameHaveTime;
-		const rgames = games.map(m=>{
-			return{
-				nid: m.nid,
-				heatDegree: m.heatDegree,
-				roomUserLimit: m.roomUserLimit,
-				topicon: m.topicon,
-				name: m.name,
-				time: m.gameStartTime + m.gameHaveTime - nowTime,
-			}
-		});
+		const rgames = gutils.gameFieldsReturn(games, true);
 		gutils.pGameNeedBuy(rgames).then(gs =>{
 			return next(null, {
 				code: 200,

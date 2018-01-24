@@ -26,7 +26,6 @@ class Player {
 		this.createTime = opts.createTime || Date.now(); // 创建时间
 		this.gamesRecord = opts.gamesRecord || {};       //游戏记录
 		this.enterRoomTime = opts.enterRoomTime;  //进入房间时的时间戳
-		this.leaveRoomTime = opts.leaveRoomTime;  //离开房间时的时间戳
 		this.integral = opts.integral || 0;       //积分
 		this.roomProfit = opts.roomProfit || 0;  //玩家在某个房间的净收益(vip场)
 		this.alipay = opts.alipay|| '';//支付宝帐号
@@ -65,68 +64,7 @@ class Player {
 		this.address = opts.address||'';
 		this.addExchange = opts.addExchange || 0;//玩家累计兑换话费卡总额
 	}
-
-	init (sid, ip) {
-		this.sid = sid;
-		this.ip = ip;
-	}
-
-	// 初始化邀请码 
-	initInviteCode (code) {
-		this.inviteCode = code;
-	}
-
-	// 取消vip
-	cancelVip () {
-		this.vip = false;
-	}
-
-	// 是否在线
-	isOnline () {
-		return !!this.sid;
-	}
-
-	// 包装游戏数据
-	wrapGameData () {
-		return {
-			uid: this.uid,
-			sid: this.sid,
-			ip: this.ip,
-			nickname: this.nickname,
-			vip :this.vip,
-			headurl: this.headurl,
-			sex: this.sex,
-			props:this.props,
-			gold: this.gold,
-			loginTime : this.loginTime,
-            loginCount:this.loginCount,
-			addRmb:this.addRmb,
-			inviteCode:this.inviteCode,
-			isPrompting :this.isPrompting ,
-			nameChanged : this.nameChanged,
-			vipStartTime:this.vipStartTime,
-			vipEffectiveTime:this.vipEffectiveTime,
-			vdot: this.vdot,
-			alipay:this.alipay,
-			integral:this.integral,
-			selfBank:this.selfBank,
-			isRobot:this.isRobot,
-			viperId:this.viperId,
-			needPlatform: this.needPlatform,
-            pirateMiniGames:this.pirateMiniGames,
-            pirateBox:this.pirateBox,
-            freespinNum:this.freespinNum,
-            pirateMiniGamesIntegral:this.pirateMiniGamesIntegral,
-            pirateBoxIntegral:this.pirateBoxIntegral,
-            freespinNumIntegral:this.freespinNumIntegral,
-			address:this.address,
-			allowances:this.allowances,
-			roulette: this.roulette,
-			dailyIndianaSign: this.dailyIndianaSign,
-			addExchange:this.addExchange,
-			monthlyCard: this.monthlyCard,
-		};
-	}
+	
 
 	// 通信传输
 	strip () {
@@ -212,46 +150,6 @@ class Player {
 			unlock: this.unlock,
 			monthlyCard: this.monthlyCard,
 		};
-	}
-
-	uids () {
-		return {uid: this.uid, sid: this.sid};
-	}
-
-	bindToPlatform() {
-		return {
-			uid: this.uid,
-		}
-	}
-
-	roomuser() {
-		return {
-			uid : this.uid,
-			nickname : this.nickname,
-			vip : this.vip,
-			headurl: this.headurl,
-			isRobot: this.isRobot,
-			inviteCode : this.inviteCode,   // 邀请码
-			viperId : this.viperId,         // 非vip玩家进入的平台的创建者的uid
-			sid : this.sid,                 // 所在服务器ID
-			ip : this.ip,                   // 登陆IP
-		}
-	}
-
-	// 更新玩家信息
-	update(opts){
-		for(let k in opts){
-			if(this.hasOwnProperty(k)){
-				this[k] = opts[k];
-			}
-		}
-	}
-
-	// 更新玩家月卡信息
-	updateMonthlyCard(opts){
-		for(let i in opts){
-			this.monthlyCard[i] = opts[i];
-		}
 	}
 }
 

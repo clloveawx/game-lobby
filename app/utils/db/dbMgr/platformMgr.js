@@ -268,6 +268,11 @@ module.exports = {
 			return Promise.reject({code: 500, error: '请传入修改后的房间信息'});
 		}
 		const {viper, nid, roomCode} = roomInfo;
+		
+		//同时更新房间的出分率
+		if(roomInfo.consumeTotal != 0){
+			roomInfo.outRate = Number((roomInfo.winTotal / roomInfo.consumeTotal).toFixed(2));
+		}
 
 		const udtPlatformRoom = () =>{
 

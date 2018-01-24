@@ -22,14 +22,21 @@ class BaseRoom {
 
 		this.socialDot = Number(opts.socialDot) || 0;
 		this.matchDot = Number(opts.matchDot) || 0;
-		this.socialRound = null;     //社交比赛回合状态
+		//this.socialRound = opts.socialRound || null;     //社交比赛回合状态
 
-		this.jackpotShow = {otime: 0, show: 0, rand: 0, ctime: 0};   //奖池显示配置
+		this.jackpotShow = opts.jackpotShow || {otime: 0, show: 0, rand: 0, ctime: 0};   //奖池显示配置
 		this.users = opts.users || [];
 	}
 
-	addUser (user){
-		this.users.push(user);
+	addUser ({uid, sid}){
+		this.users.push({uid, sid});
+	}
+	
+	leaveUser(uid){
+		const userIndex = this.users.findIndex(user => user.uid == uid);
+		if(userIndex != -1){
+			this.users.splice(userIndex, 1);
+		}
 	}
 }
 

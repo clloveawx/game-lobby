@@ -20,10 +20,11 @@ class Games {
 		this.price = opts.price;
 		this.machinePrice = opts.machinePrice;
 
-		this.users = [];
+		this.users = opts.users || [];
 		this.heatDegree = opts.heatDegree;
 		this.onlineAwards = opts.onlineAwards || 0;   //联机大奖奖池
 	}
+	
 }
 
 module.exports = Games;

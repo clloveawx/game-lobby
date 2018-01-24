@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- *   大厅数据统计
+ *   数据统计
  */
 const redisClient = require('../redis').client();
 const Promise = require('bluebird');
@@ -24,21 +24,21 @@ module.exports = {
 			console.error('增加访问量失败'+err);
 		});
 	},
-
-
+	
+	
 	/**
 	 * 记录系统环境中的玩家(使用集合类型)
 	 * 关闭服务器时需要清空
 	 */
 	addPlayerIntoSystem(uid){
-		return redisClient.sadd('ordinaryEnvPlayers', uid);
+		return redisClient.sadd('system:env:players', uid);
 	},
-
+	
 	/**
 	 * 删除某个玩家
 	 */
 	deleteplayerIntoSystem(uid){
-		return redisClient.srem('ordinaryEnvPlayers', uid);
+		return redisClient.srem('system:env:players', uid);
 	},
 	
 	/**
@@ -68,6 +68,26 @@ module.exports = {
 		});
 	},
 	
+	/**
+	 * 记录slots777社交比赛  添加
+	 */
+	add777Social({viper, roomCode}){
+		const env = viper ? viper : 'system';
+		return redisClient.sadd(`slots777:social:${env}`, `${roomCode}`);
+	},
 	
-	
+	/**
+	 * 记录slots777社交比赛  是否存在
+	 */
+	exists777Social({viper, roomCode}){
+		const env = viper ? viper : 'system';
+		return redisClient.sismember(`slots777:social:${env}`, `${roomCode}`);
+	},
+	/**
+	 * 记录slots777社交比赛  删除
+	 */
+	remove777Social({viper, roomCode}){
+		const env = viper ? viper : 'system';
+		return redisClient.srem(`slots777:social:${env}`, `${roomCode}`);
+	},
 };

@@ -5,7 +5,7 @@ const logic = require('./logic');
 const memory = require('./memory');
 
 module.exports = {
-    config,
-    logic,
-    memory,
+	config,
+	logic,
+	memory,
 };

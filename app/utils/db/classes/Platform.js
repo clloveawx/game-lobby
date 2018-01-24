@@ -56,6 +56,11 @@ class Platform {
 		const index = this.gameMembers[nid].findIndex(u => u === uid);
 		this.gameMembers[nid].splice(index, 1);
 	}
+	
+	udtPlatformToRedis(){
+		const platformMgr = require('../dbMgr/platformMgr');
+		platformMgr.platformIntoRedis(this);
+	}
 }
 
 module.exports = Platform;

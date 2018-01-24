@@ -10,7 +10,7 @@ module.exports = {
 	/**
 	 * 同步user数据 user_info
 	 */
-	updatePlayer(dbclient, {uid}, callback){
+	updateUser(dbclient, {uid}, callback){
 		//查看是否有更新任务
 		syncMgr.taskExistsUser(uid).then(exists =>{
 			if(!exists){
@@ -62,12 +62,24 @@ module.exports = {
 			});
 		});
 	},
-
+	
+	/**
+	 * 立即同步玩家数据 player_info
+	 */
+	updatePlayerFlush(dbclient, {uid, playerInfo}, callback){
+		//更新redis玩家到数据库
+		const playerModel = db.getDao('player_info');
+		playerModel.update({uid}, {'$set': playerInfo}, {upsert: true}, function(err){
+			if(err){
+				Logger.error("updatePlayerFlush 更新失败:" + err);
+			}
+		});
+	},
+	
 	/**
 	 * 同步系统游戏数据 system_games
 	 */
 	updateSystemGame(dbclient, {nid}, callback){
-		console.error('==================================================开始更新系统游戏'+nid)
 		//查看是否有更新任务
 		syncMgr.taskExistsGame(nid).then(exists =>{
 			if(!exists){
@@ -96,7 +108,6 @@ module.exports = {
 	 * 同步系统游戏房间数据 system_rooms
 	 */
 	updateSystemRoom(dbclient, {nid, roomCode}, callback){
-		console.error('==================================================开始更新系统游戏房间'+nid+roomCode)
 		//查看是否有更新任务
 		syncMgr.taskExistsGameRoom(nid, roomCode).then(exists =>{
 			if(!exists){

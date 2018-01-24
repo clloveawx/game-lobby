@@ -55,8 +55,9 @@ module.exports = {
 
 	/**
 	 * 更新redis中的指定玩家数据
+	 * flush 立即同步某个对象到持久层
 	 */
-	updatePlayer(playerInfo, callback){
+	updatePlayer(playerInfo, callback, flush = false){
 
 		if(!playerInfo){
 			return callback({code: 500, error: '请传入更新玩家信息'});
@@ -66,13 +67,17 @@ module.exports = {
 			redisClient.expire('players', 60 * 60 * 24);
 
 			//缓存更新后需要新建同步任务
-			syncMgr.taskExistsPlayer(uid).then(exists =>{
-				if(!exists){
-					syncMgr.addPlayerTask(uid).then(() =>{
-						Pomelo.app.get('sync').exec('infoSync.updatePlayer', {uid});
-					});
-				}
-			});
+			if(flush){
+				Pomelo.app.get('sync').flush('infoSync.updatePlayerFlush', uid, {uid, playerInfo}, function(){});
+			}else {
+				syncMgr.taskExistsPlayer(uid).then(exists =>{
+					if(!exists){
+						syncMgr.addPlayerTask(uid).then(() =>{
+							Pomelo.app.get('sync').exec('infoSync.updatePlayer', {uid});
+						});
+					}
+				});
+			}
 			return callback();
 		}).catch(err =>{
 			console.error('更新redis玩家信息失败', err);
@@ -114,5 +119,17 @@ module.exports = {
 			console.error('获取玩家完整信息 user_info + player_info失败', err);
 		})
 	},
+	
+	/**
+	 * 从redis中获取给定uid列表的玩家
+	 */
+	getPlayers(uids){
+		if(util.isVoid(uids)){
+			return Promise.resolve([]);
+		}
+		return redisClient.hmget(`players`, uids).then(players =>{
+			return Promise.resolve(players.filter(player => !!player).map(player => JSON.parse(player)));
+		})
+	}
 
 };

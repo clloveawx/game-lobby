@@ -24,8 +24,13 @@ proto.addCustomer = function ({type, content, phone, name, qq, weixin}, session,
 	
 	const uid = session.uid;
 	
-	PlayerMgr.getPlayerTotalInfo(uid).then(({player, user}) =>{
-
+	PlayerMgr.getPlayer({uid}, function(err, player){
+		if (err) {
+			return next(null, err);
+		}
+		if (!player) {
+			return next(null, {code: 500, error: `玩家不存在: ${uid}`});
+		}
 		if(type == 2 && player.vip){
 			return next(null, {code: 500,error:'你已经是VIP,不能再进行申请！'})
 		}
@@ -37,7 +42,7 @@ proto.addCustomer = function ({type, content, phone, name, qq, weixin}, session,
 			uid,
 			content,
 			vip: player.vip,
-			nickname: user.nickname,
+			nickname: player.nickname,
 			inviteCode: player.inviteCode,
 			type,
 			name,
@@ -45,7 +50,6 @@ proto.addCustomer = function ({type, content, phone, name, qq, weixin}, session,
 			qq,
 			weixin,
 		});
-		
 		db.getDao('customer_info').add(function(err){
 			if(err){
 				return next(null, {code: 500, error:'提交失败'})

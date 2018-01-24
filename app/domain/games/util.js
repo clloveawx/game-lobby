@@ -5,8 +5,8 @@ const Promise = require('bluebird');
 const systemMgr = require('../../utils/db/dbMgr/systemMgr');
 const platformMgr = require('../../utils/db/dbMgr/platformMgr');
 const db = require('../../utils/db/mongodb');
-const util = require('../../utils');
 const MessageService = require('../../services/MessageService');
+const playerMgr = require('../../utils/db/dbMgr/playerMgr');
 
 //奖池分配调控   (分配人数 参与分配的钱)
 const allotRegulation = util.curry((counts, money) =>{
@@ -70,7 +70,7 @@ Object.assign(module.exports, {
      * 添加游戏记录
      */
     gameRecord(record, update){
-      const gameRecordModel = require('../../utils/db/mongodb').getDao('game_record');
+      const gameRecordModel = db.getDao('game_record');
       if(update){
 		    gameRecordModel.update({playStatus: 0, gname: record.gname, uid: record.uid}, {$inc: {
 	        profit: record.profit,
@@ -86,22 +86,6 @@ Object.assign(module.exports, {
             console.error('添加游戏记录出错', record.gname, err);
           }
         });
-      }
-    },
-
-    /**
-     * 选择游戏轮盘
-     * @parama cur -上一局使用的轮盘
-     */
-    selectRoulette(cur) {
-      if(cur == '1'){
-        return Math.random() < 0.0417 ? '2' : '1';
-      }else if(cur == '2'){
-        return Math.random() < 0.0667 ? '3' : '2';
-      }else if(cur == '3'){
-        return Math.random() < 0.0909 ? '1' : '3';
-      }else{
-        return '2';
       }
     },
 
@@ -133,6 +117,33 @@ Object.assign(module.exports, {
       }
       return false;
     },
+	
+		/**
+		 * 判断能否触发爆机
+		 * @param jackpot: 奖池金额, amount:充值金额, bet: 下注倍数, maxOdd: 最大奖倍数
+		 */
+		boomJudge(jackpot, amount, bet, maxOdd){
+			if(jackpot < 5000000){
+				return false;
+			}
+			const rate = 1 - (1 - 15 * math.log(amount + 5, 10) / (4000 + 4 * math.log(amount + 5, 10)))
+				* (1 - (jackpot / 10000 / (100 * (jackpot / 10000) * 5 + 5 * 100000) + 0.002));
+			if(Math.random() < rate && jackpot >= maxOdd * bet){
+				return true;
+			}
+			return false;
+		},
+	
+		/**
+		 * 发送爆机公告
+		 */
+		boomNotice({nickname, gname, roomCode, num, moneyType}){
+			moneyType = moneyType == 'integral' ? '积分' : '金币';
+			const content = '恭喜<color=#FDD105>' + decodeURI(nickname) + '</c>在<color=#FDD105>'
+				+ gname + '</c>游戏<color=#FDD105>' + roomCode + '</c>号机器爆机成功 获得<color=#FDD105>'
+					+ util.moneyToString(num) + '</c>' + moneyType;
+			MessageService.notice({'route': 'onRoomBoom', content}, function(){});
+		},
 
 	/**
    * 游戏权重控制
@@ -187,19 +198,21 @@ Object.assign(module.exports, {
 	 * 根据游戏判断环境并修改
 	 */
 	udtGameByEnv(gameInfo){
-		if(gameInfo.viper){
-			platformMgr.udtPlatformGame(gameInfo).then(() =>{
-				return Promise.resolve();
-			}).catch(err =>{
-				console.error('更新平台${gameInfo.viper}游戏${nid}失败', err);
-			});
-		}else{
-			systemMgr.udtGame(gameInfo.nid, gameInfo).then(() =>{
-				return Promise.resolve();
-			}).catch(err =>{
-				console.error('更新系统游戏${gameInfo.nid}失败', err);
-			});
-		}
+		return new Promise((resolve, reject) =>{
+			if(gameInfo.viper){
+				platformMgr.udtPlatformGame(gameInfo).then(() =>{
+					return resolve();
+				}).catch(err =>{
+					console.error('更新平台${gameInfo.viper}游戏${nid}失败', err);
+				});
+			}else{
+				systemMgr.udtGame(gameInfo.nid, gameInfo).then(() =>{
+					return resolve();
+				}).catch(err =>{
+					console.error('更新系统游戏${gameInfo.nid}失败', err);
+				});
+			}
+		})
 	},
 	
 	/**
@@ -208,15 +221,17 @@ Object.assign(module.exports, {
 	getRoomsByGame(game){
 		const {viper, nid} = game;
 		try{
-			if(viper){
-				platformMgr.getPlatformGameRooms({viper, nid, roomInfo: true}, function(err, rooms){
-					return Promise.resolve(rooms);
-				});
-			}else{
-				systemMgr.allGameRooms(nid, true).then(rooms =>{
-					return Promise.resolve(rooms);
-				});
-			}
+			return new Promise((resolve, reject) =>{
+				if(viper){
+					platformMgr.getPlatformGameRooms({viper, nid, roomInfo: true}, function(err, rooms){
+						return resolve(rooms);
+					});
+				}else{
+					systemMgr.allGameRooms(nid, true).then(rooms =>{
+						return resolve(rooms);
+					});
+				}
+			})
 		}catch(err){
 			return Promise.reject('根据游戏判断环境并获取所有游戏房间失败', err);
 		}
@@ -226,19 +241,21 @@ Object.assign(module.exports, {
 	 * 根据房间判断环境并修改
 	 */
 	udtRoomByEnv(roomInfo){
-		if(roomInfo.viper){
-			platformMgr.udtPlatformGameRoom(roomInfo).then(() =>{
-				return Promise.resolve();
-			}).catch(err =>{
-				console.error('更新平台${roomInfo.viper}游戏${roomInfo.nid}房间${roomInfo.roomCode}失败', err);
-			});
-		}else{
-			systemMgr.udtGameRoom(roomInfo.nid, roomInfo.roomCode, roomInfo).then(() =>{
-				return Promise.resolve();
-			}).catch(err =>{
-				console.error('更新系统游戏${roomInfo.nid}房间${roomInfo.roomCode}失败', err);
-			});
-		}
+		return new Promise((resolve, reject) =>{
+			if(roomInfo.viper){
+				platformMgr.udtPlatformGameRoom(roomInfo).then(() =>{
+					return resolve();
+				}).catch(err =>{
+					console.error('更新平台${roomInfo.viper}游戏${roomInfo.nid}房间${roomInfo.roomCode}失败', err);
+				});
+			}else{
+				systemMgr.udtGameRoom(roomInfo.nid, roomInfo.roomCode, roomInfo).then(() =>{
+					return resolve();
+				}).catch(err =>{
+					console.error('更新系统游戏${roomInfo.nid}房间${roomInfo.roomCode}失败', err);
+				});
+			}
+		});
 	},
 	
 	/**
@@ -250,36 +267,38 @@ Object.assign(module.exports, {
 		}else{
 			const inviteCodeModel = db.getDao('invite_code_info');
 			//根据渠道下面的游戏开放 对渠道下的玩家显示
-			if(player.inviteCode){
-				inviteCodeModel.findOne({inviteCode: player.inviteCode}, function(err, codeInfo){
-					//查找顶级
-					const viper = codeInfo.viper;
-					inviteCodeModel.findOne({uid: viper},function(err, viperCodeInfo){
-						const  inviteGames = viperCodeInfo.games;
-						
-						if(!util.isVoid((inviteGames))){
-							return Promise.resolve(games.filter(game =>{
+			return new Promise((resolve, reject) =>{
+				if(player.inviteCode){
+					inviteCodeModel.findOne({inviteCode: player.inviteCode}, function(err, codeInfo){
+						//查找顶级
+						const viper = codeInfo.viper;
+						inviteCodeModel.findOne({uid: viper},function(err, viperCodeInfo){
+							const  inviteGames = viperCodeInfo.games;
+							
+							if(!util.isVoid((inviteGames))){
+								return resolve(games.filter(game =>{
+									return inviteGames.find(ig => ig.nid == game.nid && ig.status === true);
+								}));
+							}else{
+								//这个是渠道下面的玩家,然后该渠道没有设置哪些游戏是否开放
+								return resolve(games);
+							}
+						});
+					});
+				}else{
+					//判断玩家是不是渠道
+					inviteCodeModel.findOne({uid: player.uid}, function(err, codeInfo){
+						if(codeInfo && !util.isVoid(codeInfo.games)){
+							const  inviteGames = codeInfo.games;
+							return resolve(games.filter(game =>{
 								return inviteGames.find(ig => ig.nid == game.nid && ig.status === true);
 							}));
 						}else{
-							//这个是渠道下面的玩家,然后该渠道没有设置哪些游戏是否开放
-							return Promise.resolve(games);
+							return resolve(games);
 						}
 					});
-				});
-			}else{
-				//判断玩家是不是渠道
-				inviteCodeModel.findOne({uid: player.uid}, function(err, codeInfo){
-					if(codeInfo && !util.isVoid(codeInfo.games)){
-						const  inviteGames = codeInfo.games;
-						return Promise.resolve(games.filter(game =>{
-							return inviteGames.find(ig => ig.nid == game.nid && ig.status === true);
-						}));
-					}else{
-						return Promise.resolve(games);
-					}
-				});
-			}
+				}
+			});
 		}
 	},
 	
@@ -287,41 +306,45 @@ Object.assign(module.exports, {
 	 * 根据环境获取指定游戏房间
 	 */
 	getRoomByEnv({viper, nid, roomCode}){
-		if(viper){
-			platformMgr.getPlatformGameRoom({viper, nid, roomCode}).then(room =>{
-				return Promise.resolve(room);
-			}).catch(err =>{
-				return Promise.reject('获取平台${viper}游戏${nid}房间${roomCode}失败'+err);
-			});
-		}else{
-			systemMgr.getGameRoom({nid, roomCode}, function(err, room){
-				if(err){
-					return Promise.reject('获取系统游戏${nid}房间${roomCode}失败'+err);
-				}
-				return Promise.resolve(room);
-			});
-		}
+		return new Promise((resolve, reject) =>{
+			if(viper){
+				platformMgr.getPlatformGameRoom({viper, nid, roomCode}).then(room =>{
+					return resolve(room);
+				}).catch(err =>{
+					return reject('获取平台${viper}游戏${nid}房间${roomCode}失败'+err);
+				});
+			}else{
+				systemMgr.getGameRoom({nid, roomCode}, function(err, room){
+					if(err){
+						return reject('获取系统游戏${nid}房间${roomCode}失败'+err);
+					}
+					return resolve(room);
+				});
+			}
+		})
 	},
 	
 	/**
 	 * 根据环境获取指定游戏
 	 */
 	getGameByEnv({viper, nid}){
-		if(viper){
-			platformMgr.getPlatformGame({viper, nid}, function(err, game){
-				if(err){
-					return Promise.reject('获取平台${viper}游戏${nid}失败'+err);
-				}
-				return Promise.resolve(game);
-			});
-		}else{
-			systemMgr.getGame({nid}, function(err, game){
-				if(err){
-					return Promise.reject('获取系统游戏${nid}失败'+err);
-				}
-				return Promise.resolve(game);
-			});
-		}
+		return new Promise((resolve, reject) =>{
+			if(viper){
+				platformMgr.getPlatformGame({viper, nid}, function(err, game){
+					if(err){
+						return reject('获取平台${viper}游戏${nid}失败'+err);
+					}
+					return resolve(game);
+				});
+			}else{
+				systemMgr.getGame({nid}, function(err, game){
+					if(err){
+						return reject('获取系统游戏${nid}失败'+err);
+					}
+					return resolve(game);
+				});
+			}
+		});
 	},
 	
 	/**
@@ -393,12 +416,54 @@ Object.assign(module.exports, {
 		newRoom.jackpotShow.rand = (0 <= newRoom.jackpot && newRoom.jackpot < 2000000)
 			? newRoom.jackpot * 0.001 : util.random(200, 500);
 		return newRoom;
+	},
+	
+	/**
+	 * 获取游戏里基础信息
+	 */
+	basicInfo({viper, nid, roomCode, uid}){
+		const _this = this;
+		//获取游戏
+		return new Promise((resolve, reject) =>{
+			_this.getGameByEnv({viper, nid}).then(game =>{
+				//获取房间
+				_this.getRoomByEnv({viper, nid, roomCode}).then(room =>{
+					//获取玩家
+					playerMgr.getPlayer({uid}, function(err, player){
+						return resolve({game, room, player});
+					});
+				})
+			});
+		});
+	},
+	
+	/**
+	 * 处理玩家扣钱问题
+	 * @return 是否进入奖池 扣款后的货币
+	 */
+	deductMoney(totalBet, {integral, gold, isVip}, next){
+		if(isVip){
+			if(integral - totalBet < 0){
+				return next(null, {code: 500, error: '玩家积分不足'});
+			}else{
+				return [integral - totalBet, true]
+			}
+		}else{
+			if(util.sum(gold) - totalBet < 0){
+				return next(null, {code: 500, error: '玩家金币不足'});
+			}
+			if(gold['2'] >= totalBet){
+				gold['2'] -= totalBet;   //扣充值的金币
+				return [gold, true];
+			}else{
+				gold['1'] -= (totalBet - gold['2']);
+				gold['2'] = 0;
+				return [gold, false]
+			}
+		}
 	}
 	
 	
-	
-	
 });
-
 // console.log(module.exports.jackpotAllot(10000, 5, 15000000))
 // console.log(module.exports.dealOnlineAward(10000, 200001))
