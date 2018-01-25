@@ -34,6 +34,7 @@ const tables = new Set([
   'pay_info',         //充值记录
 	'slots_record',     //slots游戏内存记录
   'social_record',    //社交比赛记录
+	'big_post_notice',  //系統公告
 	
 	'update_announcement', //公告
   
@@ -43,7 +44,7 @@ const tables = new Set([
   'close_game',
   'add_gold_rebates',
   'gold_back_record',
-  'big_post_notice',
+  
     'save_card_things',
     'warn_value',
     'roulette_record',   //轮盘开奖记录

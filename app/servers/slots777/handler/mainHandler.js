@@ -11,7 +11,6 @@ const config = slots777.config;
 const logic = slots777.logic;
 const memory = slots777.memory;
 const playerMgr = require('../../../utils/db/dbMgr/playerMgr');
-const Promise = require('bluebird');
 
 module.exports = function(app) {
 	return new slots777Handler(app);
@@ -89,7 +88,7 @@ slots777Handler.prototype.start = function ({lineNum, bet}, session, next) {
 				envRecord[uid] = {totalWin: 0, totalBet: 0, record: [], nextUse: '1', time: 0, bet: 0};
 			}
 			//按照游戏配置生成窗口   是否可以开奖池奖励   放奖调控数据
-			let getWindow, canjackpot = false;
+			let getWindow, canjackpot = false, envAward, aR;
 			//TODO 没想到好办法，(这里当奖池不够赔付一次最大奖励连线时,就不开最大奖,但实际上一次spin可能出现多个最大奖连线而击穿奖池)
 			if(room.jackpot > config.maxAward * bet){
 				canjackpot = true;
@@ -116,10 +115,10 @@ slots777Handler.prototype.start = function ({lineNum, bet}, session, next) {
 					
 					//放奖调控
 					const ENV = isVip ? 'vip': 'system';
-					let [envAward, aR] = regulation.awardRegulation({
+					[envAward, aR] = regulation.awardRegulation({
 						isVip, roomCode, viper, jackpot: room.jackpot, roomUserLens: room.users.length
 					}, memory.awardRegulation[ENV]);
-					
+
 					//个体调控
 					const [iR1, iR2] = regulation.individualRegulation({aR, curRoulette, userEnvRecord: envRecord[uid], totalBet}, '777');
 					
@@ -128,7 +127,6 @@ slots777Handler.prototype.start = function ({lineNum, bet}, session, next) {
 			}
 			
 			//计算该窗口的赢钱情况
-			
 			let [totalWin, jackpotType, winLines, jackpotWin, multiple]
 				= logic.windowAward({winIds : getWindow, bet, lineNum, roomJackpot: room.jackpot});
 			
@@ -246,6 +244,13 @@ slots777Handler.prototype.start = function ({lineNum, bet}, session, next) {
 				}else{
 					player.gold['1'] += totalWin;
 				}
+			}
+			
+			//是否可以停止放奖
+			if(envAward && room.jackpot < envAward.jackpotBaseLine  && envAward.awardState){
+				envAward.lastTime = Date.now();
+				envAward.awardState = false;
+				envAward.readyAward = false;
 			}
 			
 			//此轮spin结束时间

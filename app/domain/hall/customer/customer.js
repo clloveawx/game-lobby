@@ -3,8 +3,8 @@
  * 客服
  */
 class Customer {
-
-	constructor (opts) {
+	
+	constructor(opts) {
 		this.uid = opts.uid;
 		this.content = opts.content;
 		this.nickname = opts.nickname;
@@ -19,55 +19,7 @@ class Customer {
 		this.weixin = opts.weixin || null;
 		this.passStatus = opts.passStatus || 0;  // 0:未处理 1:通过 2:拒绝
 	}
-
 	
-	// 包装游戏数据
-	wrapGameData () {
-		return {
-			uid: this.uid,
-			content: this.content,
-			nickname: this.nickname,
-			vip :this.vip,
-			inviteCode: this.inviteCode,
-			isSolve:this.isSolve,
-			createTime:this.createTime,
-			type: this.type,
-			name: this.name,
-			phone: this.phone,
-			qq: this.qq,
-			weixin: this.weixin,
-			passStatus: this.passStatus,
-		};
-	}
-
-	// 通信传输
-	strip () {
-		return {
-			uid: this.uid,
-			content: this.content,
-			nickname: this.nickname,
-			vip :this.vip,
-			inviteCode: this.inviteCode,
-			isSolve:this.isSolve,
-			createTime:this.createTime,
-			type: this.type,
-			name: this.name,
-			phone: this.phone,
-			qq: this.qq,
-			weixin: this.weixin,
-			passStatus: this.passStatus,
-		}
-	}
-
-	// 更新信息
-	update(opts){
-		for(let k in opts){
-			if(this.hasOwnProperty(k)){
-				this[k] = opts[k];
-			}
-		}
-	}
-
 }
 
 module.exports = Customer;

@@ -5,7 +5,7 @@
  *  社交比赛的记录
  */
 const mongoose = require('mongoose');
-
+const plugin = require('../common/plugins');
 const Schema = mongoose.Schema;
 
 const SocialRecordSchema = new Schema({
@@ -18,6 +18,8 @@ const SocialRecordSchema = new Schema({
 	type: String,   //货币类型
 	
 });
+
+SocialRecordSchema.plugin(plugin, {index: true});
 
 //增加
 SocialRecordSchema.statics.add = function(callback, params){

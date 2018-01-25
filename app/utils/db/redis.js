@@ -1,7 +1,6 @@
 'use strict';
 
 const ioredis = require("ioredis");
-const bluebird = require('bluebird');
 const Redis = module.exports;
 let RedisClient;
 

@@ -18,6 +18,16 @@ const SlotsRecordSchema = new Schema({
 
 });
 
+//根據條件查找一條數據
+SlotsRecordSchema.statics.load_one = function(callback, params){
+	this.findOne(params, function(err, data){
+		if(err){
+			console.error('查找內訓遊戲記錄失敗',err);
+		}
+		return callback(null, data);
+	});
+};
+
 //查找并更新
 SlotsRecordSchema.statics.find_one_and_update = function(callback, params){
 	if(!params.conds){

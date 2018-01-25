@@ -461,9 +461,29 @@ Object.assign(module.exports, {
 				return [gold, false]
 			}
 		}
-	}
+	},
+	
+	/**
+	 * 功能性服务扣钱 (默认从非充值金币扣钱)
+	 * num-扣款数量  money-对应环境下玩家货币数
+	 * 这里默认玩家金钱数量足够
+ 	 */
+	funningMoneyDeduct({isVip, num, money}){
+		if(isVip){
+			return money - num;
+		}else{
+			if(money['1'] >= num){
+				money['1'] -= num;
+			}else{
+				money['2'] -= (num - money['1']);
+				money['1'] = 0;
+			}
+			return money;
+		}
+	},
+	
 	
 	
 });
-// console.log(module.exports.jackpotAllot(10000, 5, 15000000))
+console.log(module.exports.funningMoneyDeduct({isVip:false, num: 500, money: {1:400,2:300}}))
 // console.log(module.exports.dealOnlineAward(10000, 200001))

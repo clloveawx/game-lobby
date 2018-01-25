@@ -91,7 +91,6 @@ proto.changeName = function ({nickname}, session, next) {
 };
 
 /**
- * modified by CL
  * 用户绑定手机
  * @route: hall.userHandler.bindCellPhone
  */

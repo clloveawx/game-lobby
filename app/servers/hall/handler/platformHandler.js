@@ -9,7 +9,6 @@ const async = require('async');
 
 const {playerMgr, platformMgr, systemMgr} = require('../../../utils/db/dbMgr');
 
-
 module.exports = function(app) {
 	return new Handler(app);
 };

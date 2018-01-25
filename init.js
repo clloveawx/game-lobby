@@ -197,3 +197,23 @@ exports.hall = app =>{
 		// 后续可配置各种定时器
 	});
 };
+
+//777服務器
+exports.slots777 = () =>{
+	//將數據庫中的777遊戲數據放入內存
+	const slotsModel = db.getDao('slots_record');
+	const slots777Memory = require('./app/domain/games/slots777/memory');
+	slotsModel.load_one(function(err, doc){
+		if(err){
+			console.error('初始化777服務器失敗',err);
+			return;
+		}
+		util.objAssignment(slots777Memory, doc);
+		console.log('初始化777服務器成功');
+	}, {game: '1'});
+};
+
+//埃及服務器
+exports.pharaoh = () =>{
+
+};

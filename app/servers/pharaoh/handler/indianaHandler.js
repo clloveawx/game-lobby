@@ -6,7 +6,9 @@ const indiana = require('../../../domain/games/egypt');
 const config = indiana.config;
 const logic = indiana.logic;
 const memory = indiana.memory;
-const pushGameRecord = require('../../../domain/games/util').gameRecord;
+const gutil = require('../../../domain/games/util');
+const regulation = require('../../../domain/games/regulation');
+const playerMgr = require('../../../utils/db/dbMgr/playerMgr');
 
 module.exports = function(app) {
 	return new indianaHandler(app);
@@ -21,10 +23,8 @@ var indianaHandler = function(app) {
  * @route: pharaoh.indianaHandler.initGame
  */
 indianaHandler.prototype.initGame = function({}, session, next) {
-	const isVip = session.get('VIP_ENV');
-	const viper = session.get('viper');
-	const roomCode = session.get('roomCode');
-	const uid = session.uid;
+	
+	const {uid, isVip, viper, roomCode} = gutil.sessionInfo(session);
 	const env = isVip ? viper : 'system';
 	if(roomCode == null){
 		return next(null, {code: 500, error: '未在游戏房间中'});

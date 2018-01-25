@@ -64,7 +64,7 @@ function newUser(next, {id, cellPhone, passWord, userName, userWord, email}) {
 		}, {uid});
 	};
 	generateUID();
-};
+}
 
 /**
  * 游客登陆

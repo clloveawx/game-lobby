@@ -526,5 +526,4 @@ exports.timeInterval = (targetTime, order = true) =>{
 		return {days, hours, minutes};
 	}
 };
-// console.log(exports.timeInterval(Date.now() - 1000 *  60, false))
 

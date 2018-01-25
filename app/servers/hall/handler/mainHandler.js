@@ -152,7 +152,7 @@ mainHandler.prototype.enterGame = ({nid}, session, next) =>{
 			//绑定进入的游戏
 			sessionService.sessionSet(session, {'game': nid});
 			//census.gameTotal[nid].add(uid);
-			let lastRoom, envLGC = player.lastGameContents[viper ? viper : 'system'];
+			let envLGC = player.lastGameContents[viper ? viper : 'system'];
 			return next(null, {
 				code: 200,
 				rooms: rooms.filter(room =>room.open),

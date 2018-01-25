@@ -65,6 +65,10 @@ class Player {
 		this.addExchange = opts.addExchange || 0;//玩家累计兑换话费卡总额
 	}
 	
+	init (sid, ip) {
+		this.sid = sid;
+		this.ip = ip;
+	}
 
 	// 通信传输
 	strip () {
